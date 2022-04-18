@@ -1,6 +1,5 @@
 import json
 import logging
-import numpy as np
 # import boto3
 import io
 from PIL import Image
@@ -10,6 +9,7 @@ from inference_timm import *
 logger = logging.getLogger("lambdaHandler")
 logger.setLevel(logging.INFO)
 
+# downloading images from S3 is less flexible than using requests!
 # s3 = boto3.resource('s3')
 classifier = DogBreedClassifier("inference_config.yaml")
 
@@ -31,35 +31,14 @@ def get_image_from_url(url):
         raise e
 
 
-# def get_image_from_s3(url):
-#     """ Get image from s3 bucket; assuming the s3 object url is in the form of:
-#     https://serverless-udagram-images-redux-dev.s3.eu-west-1.amazonaws.com/1f0a6188-43bb-4d5c-84cc-61581774b609
-#     so that the bucket name and object key can be parsed from the url
-#     """
-#     def parse_s3_url(s3_object_url):
-#         bucket = s3_object_url.split('/')[2].split(".s3")[0]
-#         key = s3_object_url.split('/')[3]
-#         return bucket, key
-#
-#     bucket_name, object_key = parse_s3_url(url)
-#     try:
-#         s3.Object(bucket_name, object_key).download_file("/tmp/image.jpg")
-#         img = Image.open("/tmp/image.jpg")
-#         return img
-#     except Exception as e:
-#         raise e
-
-
 def lambda_handler(event, context):
     try:
-        # body = json.loads(event["body"])
-        # image_url = body["url"]
-        # placeholder for now, might be adapted later when the url is sent in the payload of the requets
-        image_url = event["url"]
+        body = json.loads(event["body"])
+        image_url = body["url"]
         logger.info(f"image url: {image_url}")
+
         img = get_image_from_url(image_url)
-        img_np = np.array(img)
-        logger.info(f"image shape: {img_np.shape}")
+
         pred_logits, top1, top5 = classifier.predict(img)
         pred_probabilities = classifier.get_probs()
         top1_class = classifier.get_class_name(top1)
@@ -75,14 +54,14 @@ def lambda_handler(event, context):
             "headers": {"Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Credentials": True},
-            "body": json.dumps({"url": image_url,
-                                "top1": top1_class,
-                                "prob": top1_probs})
+            "body": json.dumps({"url": image_url,  # todo: remove it and replace it with some message
+                                "top1": top1_class,  # todo: rename it
+                                "prob": top1_probs})  # todo: rename it
         }
     except Exception as e:
         logger.error(f"Error: {e}")
         return {
-            "statusCode": 500,
+            "statusCode": 500,  # todo: should be 400
             "headers": {"Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Credentials": True},

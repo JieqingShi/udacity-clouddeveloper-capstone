@@ -3,14 +3,14 @@
 FROM public.ecr.aws/lambda/python:3.8
 
 # Copy the earlier created requirements.txt file to the container
-COPY requirements.txt ./
+COPY python/requirements.txt ./
 
 # Install the python requirements from requirements.txt
 RUN python3.8 -m pip install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
 # Copy the earlier created app.py file to the container
-COPY inference_config.yaml inference_timm.py ./
-COPY app.py ./
+COPY python/inference_config.yaml inference_timm.py ./
+COPY python/app.py ./
 
 # Load the BERT model from Huggingface and store it in the model directory
 RUN mkdir model
