@@ -1,6 +1,7 @@
 # Custom
 .DS_Store
 python/.serverless
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
