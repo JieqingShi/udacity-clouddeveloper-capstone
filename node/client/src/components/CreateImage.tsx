@@ -31,7 +31,8 @@ export class CreateImage extends React.PureComponent<
   state: CreateImageState = {
     title: '',
     file: undefined,
-    uploadState: UploadState.NoUpload
+    uploadState: UploadState.NoUpload,
+
   }
 
   handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
