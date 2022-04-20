@@ -37,6 +37,7 @@ provider:
   environment:
     GROUPS_TABLE: Groups-${self:provider.stage}
     IMAGES_TABLE: Images-${self:provider.stage}
+    # IMAGES_PROCESSED_TABLE: Images-Processed-${self:provider.stage}
     IMAGE_ID_INDEX: ImageIdIndex
     CONNECTIONS_TABLE: Connections-${self:provider.stage}
     IMAGES_S3_BUCKET: serverless-udagram-images-redux-${self:provider.stage}
@@ -59,11 +60,21 @@ provider:
       Action:
         - dynamodb:Query
         - dynamodb:PutItem
+        - dynamodb:UpdateItem  # for updating the image table with a new URL / or replace the existing one
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
     - Effect: Allow
       Action:
         - dynamodb:Query
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
+    # - Effect: Allow
+    #   Action:
+    #     - dynamodb:Query
+    #     - dynamodb:PutItem
+    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_PROCESSED_TABLE}
+    # - Effect: Allow
+    #   Action:
+    #     - dynamodb:Query
+    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_PROCESSED_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
     - Effect: Allow
       Action:
         - s3:GetObject
@@ -155,6 +166,55 @@ functions:
             description: Create a new image
             requestModels:
               'application/json': ImageRequest
+
+  UpdateImage:
+    handler: src/lambda/http/updateImage.handler
+    events:
+      - http:
+          path: images/{imageId}
+          method: patch
+          cors: true
+          # authorizer: Auth
+          authorizer: RS256Auth
+          reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: Update an image
+            description: Update an image
+            requestModels:
+              'application/json': ImageRequest
+
+  # perhaps these three lambda functions will not be needed
+  # GetProcessedImagesPerGroup:
+  #   handler: src/lambda/http/getProcessedImagesPerGroup.handler
+  #   events:
+  #     - http:
+  #         path: groups/{groupId}/images_processed
+  #         method: get
+  #         cors: true
+
+  # GetProcessedImage:
+  #   handler: src/lambda/http/getProcessedImage.handler
+  #   events:
+  #     - http:
+  #         path: images_processed/{imageId}
+  #         method: get
+  #         cors: true
+  
+  # StoreProcessedImage:
+  #   handler: src/lambda/http/storeProcessedImage.handler
+  #   events:
+  #     - http:
+  #         path: /groups/{groupId}/images_processed
+  #         method: post
+  #         cors: true
+  #         # authorizer: Auth
+  #         authorizer: RS256Auth
+  #         reqValidatorName: RequestBodyValidator
+  #         documentation:
+  #           summary: Store a new processed image into dynamodb
+  #           description: Store a new processed image into dynamodb
+  #           requestModels:
+  #             'application/json': Store a new processed image into dynamodb
   
   SendUploadNotifications:
     environment:
@@ -282,6 +342,33 @@ resources:
           StreamViewType: NEW_IMAGE
         TableName: ${self:provider.environment.IMAGES_TABLE}
 
+    # ImagesProcessedDynamoDBTable:
+    #   Type: AWS::DynamoDB::Table
+    #   Properties:
+    #     AttributeDefinitions:
+    #       - AttributeName: groupId
+    #         AttributeType: S
+    #       - AttributeName: timestamp
+    #         AttributeType: S
+    #       - AttributeName: imageId
+    #         AttributeType: S
+    #     KeySchema:
+    #       - AttributeName: groupId
+    #         KeyType: HASH
+    #       - AttributeName: timestamp
+    #         KeyType: RANGE
+    #     GlobalSecondaryIndexes:
+    #       - IndexName: ${self:provider.environment.IMAGE_ID_INDEX}
+    #         KeySchema:
+    #           - AttributeName: imageId
+    #             KeyType: HASH
+    #         Projection:
+    #           ProjectionType: ALL
+    #     BillingMode: PAY_PER_REQUEST
+    #     StreamSpecification:
+    #       StreamViewType: NEW_IMAGE
+    #     TableName: ${self:provider.environment.IMAGES_PROCESSED_TABLE}
+
     WebSocketConnectionsDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -384,36 +471,12 @@ resources:
                   AWS:SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
         Topics:
           - !Ref ImagesTopic
-
-    # SNSTopicPolicyProcessedImages:
-    #   Type: AWS::SNS::TopicPolicy
-    #   Properties:
-    #     PolicyDocument:
-    #       Version: "2012-10-17"
-    #       Statement:
-    #         - Effect: Allow
-    #           Principal:
-    #             AWS: "*"
-    #           Action: sns:Publish
-    #           Resource:
-    #             !Ref ImagesProcessedTopic
-    #           Condition:
-    #             ArnLike:
-    #               AWS:SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}
-    #     Topics:
-    #       - !Ref ImagesProcessedTopic
     
     ImagesTopic:
       Type: AWS::SNS::Topic
       Properties:
         DisplayName: Image bucket topic
         TopicName: ${self:custom.topicName}
-
-    # ImagesProcessedTopic:
-    #   Type: AWS::SNS::Topic
-    #   Properties:
-    #     DisplayName: Image processed bucket topic
-    #     TopicName: ${self:custom.topicName}
 
     KMSKey:
       Type: AWS::KMS::Key
@@ -448,31 +511,3 @@ resources:
         Name: ${self:provider.environment.AUTH_0_SECRET_ID}
         Description: Auth0 secret
         KmsKeyId: !Ref KMSKey
-
-
-    # Uncomment if you want to create Elasticsearch
-    # ImagesSearch:
-    #   Type: AWS::Elasticsearch::Domain
-    #   Properties:
-    #     ElasticsearchVersion: '6.3'
-    #     DomainName: images-search-${self:provider.stage}
-    #     ElasticsearchClusterConfig:
-    #       DedicatedMasterEnabled: false
-    #       InstanceCount: '1'
-    #       ZoneAwarenessEnabled: false
-    #       InstanceType: t2.small.elasticsearch
-    #     EBSOptions:
-    #       EBSEnabled: true
-    #       Iops: 0
-    #       VolumeSize: 10
-    #       VolumeType: 'gp2'
-
-    #     AccessPolicies:
-    #       Version: '2012-10-17'
-    #       Statement:
-    #         -
-    #           Effect: Allow
-    #           Principal:
-    #             AWS: '*'
-    #           Action: 'es:*'
-    #           Resource: '*'
