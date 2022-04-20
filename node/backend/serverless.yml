@@ -1,5 +1,5 @@
 service:
-  name: serverless-ai-imagesearch-app-redux
+  name: serverless-udagram-app-redux
 
 plugins:
   - serverless-webpack
@@ -15,8 +15,8 @@ custom:
     api:
       info:
         version: v1.0.0
-        title: ai-imagesearch API
-        description: Serverless application for image sharing and searching
+        title: Udagram API
+        description: Serverless application for image sharing
     models:
       - name: GroupRequest
         contentType: application/json
@@ -24,9 +24,6 @@ custom:
       - name: ImageRequest
         contentType: application/json
         schema: ${file(models/create-image-request.json)}
-      - name: PredictionRequest
-        contentType: application/json
-        schema: ${file(models/create-prediction-request.json)}
   webpack:
     includeModules: true
 
@@ -39,24 +36,17 @@ provider:
 
   environment:
     GROUPS_TABLE: Groups-${self:provider.stage}
-    BREEDS_TABLE: Breeds-${self:provider.stage}
     IMAGES_TABLE: Images-${self:provider.stage}
     IMAGE_ID_INDEX: ImageIdIndex
-    BREED_ID_INDEX: BreedIdIndex
-
-    # should be done in model stack
-    PREDICTIONS_TABLE: Predictions-${self:provider.stage}  
-    PREDICTION_ID_INDEX: PredictionIdIndex
-    
-    IMAGES_S3_BUCKET: serverless-ai-imagesearch-images-redux-${self:provider.stage}  # for raw images
-
-    # should be done in model stack since opencv will be needed
-    IMAGES_PRED_RESULTS_S3_BUCKET: serverless-ai-imagesearch-images-predresults-redux-${self:provider.stage}  # for processed images after prediction is returned
-    
+    CONNECTIONS_TABLE: Connections-${self:provider.stage}
+    IMAGES_S3_BUCKET: serverless-udagram-images-redux-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
     REGION: eu-west-1
+    THUMBNAILS_S3_BUCKET: serverless-udagram-thumbnail-redux-${self:provider.stage}
+    IMAGES_PROCESSED_S3_BUCKET: serverless-udagram-processed-images-redux-${self:provider.stage}
     AUTH_0_SECRET_ID: Auth0Secret-${self:provider.stage}
     AUTH_0_SECRET_FIELD: auth0Secret
+    MODEL_ENDPOINT: https://ot7wogofk9.execute-api.eu-west-1.amazonaws.com/dev/predict
 
   iamRoleStatements:
     - Effect: Allow
@@ -69,55 +59,30 @@ provider:
       Action:
         - dynamodb:Query
         - dynamodb:PutItem
-        - dynamodb:GetItem
-        - dynamodb:UpdateItem
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-    # current use of this table is to simply store a hash map of the breed id to name
-    - Effect: Allow
-      Action:
-        - dynamodb:Scan
-        # - dynamodb:PutItem
-        - dynamodb:GetItem
-        # - dynamodb:UpdateItem
-      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.BREEDS_TABLE}
-    # should be done on model side
     - Effect: Allow
       Action:
         - dynamodb:Query
-        - dynamodb:PutItem
-      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PREDICTION_TABLE}
-    - Effect: Allow
-      Action:
-        - dynamodb:Query
-      Resource: 
-        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
-        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.BREED_ID_INDEX}
-    # should be done on model side
-    - Effect: Allow
-      Action:
-        - dynamodb:Query
-      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PREDICTIONS_TABLE}/index/${self:provider.environment.PREDICTION_ID_INDEX}
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
     - Effect: Allow
       Action:
         - s3:GetObject
         - s3:PutObject
       Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
-    # should be done on model side
     - Effect: Allow
       Action:
-        - s3:GetObject
+      - dynamodb:Scan
+      - dynamodb:PutItem
+      - dynamodb:DeleteItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
+    - Effect: Allow
+      Action:
         - s3:PutObject
-      Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PRED_RESULTS_S3_BUCKET}/*
-    # - Effect: Allow
-    #   Action:
-    #   - dynamodb:Scan
-    #   - dynamodb:PutItem
-    #   - dynamodb:DeleteItem
-    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
-    # - Effect: Allow
-    #   Action:
-    #     - s3:PutObject
-    #   Resource: arn:aws:s3:::${self:provider.environment.THUMBNAILS_S3_BUCKET}/*
+      Resource: arn:aws:s3:::${self:provider.environment.THUMBNAILS_S3_BUCKET}/*
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
     - Effect: Allow
       Action:
         - secretsmanager:GetSecretValue
@@ -128,7 +93,7 @@ provider:
       Resource: !GetAtt KMSKey.Arn
 
 functions:
-  # Auth
+
   RS256Auth:
     handler: src/lambda/auth/rs256Auth0Authorizer.handler
 
@@ -142,70 +107,7 @@ functions:
           path: /groups
           method: get
           cors: true
-
-  # GET
-  GetImagesPerGroup:
-    handler: src/lambda/http/getImagesPerGroup.handler
-    events:
-      - http:
-          path: groups/{groupId}/images
-          method: get
-          cors: true
   
-  GetImage:
-    handler: src/lambda/http/getImage.handler
-    events:
-      - http:
-          path: images/{imageId}
-          method: get
-          cors: true
-
-  # Todo: Implement, dynamodb
-  GetImagePerBreed:
-    handler: src/lambda/http/getImagePerBreed.handler
-    events:
-      - http:
-          path: breeds/{breedId}/images
-          method: get
-          cors: true
-  
-  # Todo: Implement, dynamodb
-  GetBreeds:
-    handler: src/lambda/http/getBreeds.handler
-    events:
-      - http:
-          path: /breeds
-          method: get
-          cors: true
-  
-  # Todo: Implement, dynamodb
-  GetBreed:
-    handler: src/lambda/http/getBreed.handler
-    events:
-      - http:
-          path: breeds/{breedId}
-          method: get
-          cors: true
-
-  # Todo: Implement, dynamodb
-  GetPredictionByImageUrl:
-    handler: src/lambda/http/getPredictionsByImageUrl.handler
-    events:
-      - http:
-          path: image/{imageId}/prediction
-          method: get
-          cors: true
-  
-  # ToDo: Implement IN MODEL STACK
-  # GetPredictionById:
-  #   handler: src/lambda/http/getPrediction.handler
-  #   events:
-  #     - http:
-  #         path: predictions/{predictionId}
-  #         method: get
-  #         cors: true
-
-  # CREATE
   CreateGroup:
     handler: src/lambda/http/createGroups.handler
     events:
@@ -222,6 +124,22 @@ functions:
             requestModels:
               'application/json': GroupRequest
 
+  GetImagesPerGroup:
+    handler: src/lambda/http/getImagesPerGroup.handler
+    events:
+      - http:
+          path: groups/{groupId}/images
+          method: get
+          cors: true
+  
+  GetImage:
+    handler: src/lambda/http/getImage.handler
+    events:
+      - http:
+          path: images/{imageId}
+          method: get
+          cors: true
+  
   CreateImage:
     handler: src/lambda/http/createImage.handler
     events:
@@ -237,26 +155,72 @@ functions:
             description: Create a new image
             requestModels:
               'application/json': ImageRequest
-
-  # Todo: Implement, dynamodb -> grab from predictions table and put the results here
-  CreatePrediction:
-    handler: src/lambda/http/createPrediction.handler
+  
+  SendUploadNotifications:
+    environment:
+      STAGE: ${self:provider.stage}
+      API_ID: 
+        Ref: WebsocketsApi
+    handler: src/lambda/s3/sendNotifications.handler
     events:
-      - http:
-          path: /image/{imageId}/prediction
-          method: put
-          cors: true
-          # authorizer: Auth
-          authorizer: RS256Auth
-          reqValidatorName: RequestBodyValidator
-          documentation:
-            summary: Create a new prediction
-            description: Create a new prediction
-            requestModels:
-              'application/json': PredictionRequest
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.topicName}
+          topicName: ${self:custom.topicName}
+  
+  ConnectHandler:
+    handler: src/lambda/websocket/connect.handler
+    events:
+      - websocket:
+          route: $connect
 
-  # We will not implement a 'create breed' function as there are only a fixed number of breeds and we expect that there won't be any new ones in the future
+  DisconnectHandler:
+    handler: src/lambda/websocket/disconnect.handler
+    events:
+      - websocket:
+          route: $disconnect
 
+  ResizeImage:
+    handler: src/lambda/s3/resizeImage.handler
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.topicName}
+          topicName: ${self:custom.topicName}
+
+  ProcessImage:
+    handler: src/lambda/s3/processImage.handler
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.topicName}
+          topicName: ${self:custom.topicName}
+
+  # Uncomment if you want to enable Elasticsearch sync
+  # SyncWithElasticsearch:
+  #   environment:
+  #     ES_ENDPOINT: !GetAtt ImagesSearch.DomainEndpoint
+  #   handler: src/lambda/dynamoDb/elasticSearchSync.handler
+  #   events:
+  #     - stream:
+  #         type: dynamodb
+  #         arn: !GetAtt ImagesDynamoDBTable.StreamArn
+          
 resources:
   Resources:
     GatewayResponseDefault4XX:
@@ -318,9 +282,23 @@ resources:
           StreamViewType: NEW_IMAGE
         TableName: ${self:provider.environment.IMAGES_TABLE}
 
-    AttachmentsBucket:
+    WebSocketConnectionsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+
+    ImagesBucket:
       Type: AWS::S3::Bucket
-      DependsOn: SNSTopicPolicy
+      DependsOn: SNSTopicPolicyImages
       Properties:
         BucketName: ${self:provider.environment.IMAGES_S3_BUCKET}
         NotificationConfiguration:
@@ -342,16 +320,26 @@ resources:
                 - HEAD
               MaxAge: 3000
     
-    # SendUploadNotificationsPermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     FunctionName: !Ref SendUploadNotificationsLambdaFunction
-    #     Principal: s3.amazonaws.com
-    #     Action: lambda:InvokeFunction
-    #     SourceAccount: !Ref AWS::AccountId
-    #     SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
+    ThumbnailsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
 
-    BucketPolicy:
+    ImagesProcessedBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}
+    
+    SendUploadNotificationsPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref SendUploadNotificationsLambdaFunction
+        Principal: s3.amazonaws.com
+        Action: lambda:InvokeFunction
+        SourceAccount: !Ref AWS::AccountId
+        SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}
+
+    ImageBucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
         PolicyDocument:
@@ -363,9 +351,23 @@ resources:
               Principal: {"AWS":"*"}
               Action: 's3:GetObject'
               Resource: 'arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*'
-        Bucket: !Ref AttachmentsBucket
+        Bucket: !Ref ImagesBucket
 
-    SNSTopicPolicy:
+    ImageProcessedBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        PolicyDocument:
+          Id: MyPolicy
+          Version: "2012-10-17"
+          Statement:
+            - Sid: PublicReadForGetBucketObjects
+              Effect: Allow
+              Principal: {"AWS":"*"}
+              Action: 's3:GetObject'
+              Resource: 'arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*'
+        Bucket: !Ref ImagesProcessedBucket
+
+    SNSTopicPolicyImages:
       Type: AWS::SNS::TopicPolicy
       Properties:
         PolicyDocument:
@@ -383,12 +385,35 @@ resources:
         Topics:
           - !Ref ImagesTopic
 
+    # SNSTopicPolicyProcessedImages:
+    #   Type: AWS::SNS::TopicPolicy
+    #   Properties:
+    #     PolicyDocument:
+    #       Version: "2012-10-17"
+    #       Statement:
+    #         - Effect: Allow
+    #           Principal:
+    #             AWS: "*"
+    #           Action: sns:Publish
+    #           Resource:
+    #             !Ref ImagesProcessedTopic
+    #           Condition:
+    #             ArnLike:
+    #               AWS:SourceArn: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}
+    #     Topics:
+    #       - !Ref ImagesProcessedTopic
     
     ImagesTopic:
       Type: AWS::SNS::Topic
       Properties:
         DisplayName: Image bucket topic
         TopicName: ${self:custom.topicName}
+
+    # ImagesProcessedTopic:
+    #   Type: AWS::SNS::Topic
+    #   Properties:
+    #     DisplayName: Image processed bucket topic
+    #     TopicName: ${self:custom.topicName}
 
     KMSKey:
       Type: AWS::KMS::Key

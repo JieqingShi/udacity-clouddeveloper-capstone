@@ -12,9 +12,9 @@ const s3 = new AWS.S3({
 
 const groupsTable = process.env.GROUPS_TABLE
 const imagesTable = process.env.IMAGES_TABLE
-const bucketName = process.env.IMAGES_S3_BUCKET
+const bucketName = process.env.IMAGES_S3_BUCKET  // Change bucket to processed images bucket
 const urlExpiration = process.env.SIGNED_URL_EXPIRATION
-const model_endpoint = process.env.MODEL_ENDPOINT
+// const model_endpoint = process.env.MODEL_ENDPOINT
 
 export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Caller event', event)

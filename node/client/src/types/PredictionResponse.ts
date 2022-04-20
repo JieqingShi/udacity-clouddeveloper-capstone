@@ -1,6 +1,6 @@
 export interface PredictionResponse {
     url: string;
-    top1: Array<string>;
-    prob: Array<number>;
+    top5: Array<string>;
+    prob5: Array<number>;
   }
   

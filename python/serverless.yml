@@ -8,19 +8,21 @@
    # that only one of the two is allowed to be specified)!
 service: serverless-imageclassifier-pytorch
 
+# plugins:
+
 provider:
   name: aws
   runtime: python3.8
   memorySize: 4096
-  timeout: 30
+  timeout: 30  # default API Gateway timeout; does not make sense to increase it beyond 30 seconds
   stage: ${opt:stage, "dev"}
   region: ${opt:stage, "eu-west-1"}
   apiGateway:
     shouldStartNameWithService: true
 
 functions:
-  imagepredict:
-    image: 384578942266.dkr.ecr.eu-west-1.amazonaws.com/pytorch-timm-image-classification@sha256:c05cd398eaae33e57ea7c7f4eb5b8f14d1d7c75ef794231be0a1083fadac64ac
+  imagepredicttop5:
+    image: 384578942266.dkr.ecr.eu-west-1.amazonaws.com/pytorch-timm-image-classification@sha256:eab2fc282a7f0fd50874a6304dba5c055ecb5e29fcb3c41b4527fa75565fde62
     events:
       - http:
           path: predict
