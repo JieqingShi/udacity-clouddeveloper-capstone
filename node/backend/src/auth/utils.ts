@@ -19,3 +19,9 @@ export function getUserId(event: APIGatewayProxyEvent): string {
     const decodedToken: JwtToken = decode(jwtToken) as JwtToken
     return decodedToken.sub
 }
+
+// Just in case it will be needed
+// export function getUserIdFromToken(jwtToken: string): string {
+//     const decodedJwt = decode(jwtToken) as JwtToken
+//     return decodedJwt.sub
+// }
