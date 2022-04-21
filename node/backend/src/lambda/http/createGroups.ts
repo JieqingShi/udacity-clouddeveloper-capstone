@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
 import * as middy from 'middy'
-import { cors } from 'middy/middlewares'
+import { cors, httpErrorHandler } from 'middy/middlewares'
 import { createLogger } from '../../utils/logger'
 import { CreateGroupRequest } from '../../requests/CreateGroupRequest'
 import { createGroup } from '../../businessLogic/groups'
@@ -25,7 +25,9 @@ export const handler =middy(async (event: APIGatewayProxyEvent): Promise<APIGate
   }
 })
 
-handler.use(
+handler
+.use(httpErrorHandler())
+.use(
     cors({
     credentials: true
   })

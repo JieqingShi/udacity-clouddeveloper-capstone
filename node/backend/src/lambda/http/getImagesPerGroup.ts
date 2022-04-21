@@ -1,13 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as AWS  from 'aws-sdk'
 import * as middy from 'middy'
 import { cors } from 'middy/middlewares'
 import { createLogger } from '../../utils/logger'
-
-const docClient = new AWS.DynamoDB.DocumentClient()
-const groupsTable = process.env.GROUPS_TABLE
-const imagesTable = process.env.IMAGES_TABLE
+import { validateGroup } from '../../businessLogic/groups'
+import { getAllImagesPerGroup } from '../../businessLogic/images'
 
 const logger = createLogger('getImagesPerGroupLogger')
 
@@ -15,10 +12,9 @@ export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGat
   logger.info('Caller event', event)
   const groupId = event.pathParameters.groupId;
 
-  const validGroupId = await groupExists(groupId)
+  const groupExists = await validateGroup(groupId)
 
-  // if groupId is not valid, return 404 
-  if (!validGroupId) {
+  if (!groupExists) {
     return {
       statusCode: 404,
       body: JSON.stringify({
@@ -26,9 +22,9 @@ export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGat
       })
     }
   }
-
-  // else fetch images for this group
-  const images = await getImagesPerGroup(groupId)
+  logger.info(`Group with Id ${groupId} exists`)
+  const images = await getAllImagesPerGroup(groupId)
+  logger.info(`Returning ${images.length} images`)
 
   return {
     statusCode: 200,
@@ -43,35 +39,3 @@ handler.use(
     credentials: true
   })
 )
-
-
-async function groupExists(groupId: string) {
-    const result = await docClient
-      .get({
-        TableName: groupsTable,
-        Key: {
-          id: groupId
-        }
-      })
-      .promise()
-  
-    logger.info('Get group: ', result)
-    return !!result.Item  // !! converts to boolean; if result.Item is not null, return true (the first ! converts it to true, the second ! to false)
-}
-
-
-async function getImagesPerGroup(groupId: string) {
-    const result = await docClient
-      .query({
-        TableName: imagesTable,
-        KeyConditionExpression: 'groupId = :groupId',
-        ExpressionAttributeValues: {
-          ':groupId': groupId
-        },
-        ScanIndexForward: false  // reverts order of images in partition -> return latest image first; sort key is timestamp
-      })
-      .promise()
-  
-    logger.info('Query images: ', result)
-    return result.Items
-}

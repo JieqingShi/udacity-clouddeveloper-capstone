@@ -6,7 +6,7 @@ import Axios from 'axios'
 import { Jwt } from '../../auth/Jwt'
 import { JwtToken } from '../../auth/JwtToken'
 
-const logger = createLogger('auth')
+const logger = createLogger('authLogger')
 
 // To get this URL you need to go to an Auth0 page -> Show Advanced Settings -> Endpoints -> JSON Web Key Set
 const jwksUrl = process.env.AUTH_0_JWKS_URL
