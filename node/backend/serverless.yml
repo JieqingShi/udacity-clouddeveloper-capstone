@@ -130,16 +130,6 @@ functions:
             requestModels:
               'application/json': ImageRequest
 
-  # Not needed anymore; we do not use the API Gateway to update the image URL but directly in the S3 lambda handler for processing Images
-  UpdateImage:
-    handler: src/lambda/http/updateImage.handler
-    events:
-      - http:
-          path: images/{imageId}
-          method: patch
-          cors: true
-          authorizer: Auth
-
   ProcessImage:
     handler: src/lambda/s3/processImage.handler
     events:
@@ -181,7 +171,6 @@ resources:
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
-          -
         KeySchema:
           - AttributeName: id
             KeyType: HASH
