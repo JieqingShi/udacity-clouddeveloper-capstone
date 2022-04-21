@@ -3,21 +3,25 @@ import 'source-map-support/register'
 import * as AWS from 'aws-sdk'
 import Jimp from 'jimp/es'
 import Axios from 'axios'
+import * as middy from 'middy'
+import { cors } from 'middy/middlewares'
+import { createLogger } from '../../utils/logger'
 
 const s3 = new AWS.S3()
 const docClient = new AWS.DynamoDB.DocumentClient()
-
 const imagesTable = process.env.IMAGES_TABLE
 const imageIdIndex = process.env.IMAGE_ID_INDEX
 const imagesBucketName = process.env.IMAGES_S3_BUCKET
 const imagesProcessedBucketName = process.env.IMAGES_PROCESSED_S3_BUCKET
 const modelEndpoint = process.env.MODEL_ENDPOINT
 
-export const handler: SNSHandler = async (event: SNSEvent) => {
-    console.log('Processing SNS event ', JSON.stringify(event))
+const logger = createLogger('processImage')
+
+export const handler = middy(async (event: SNSEvent) => {
+    logger.info('Processing SNS event ', JSON.stringify(event))
     for (const snsRecord of event.Records) {
       const s3EventStr = snsRecord.Sns.Message
-      console.log('Processing S3 event', s3EventStr)
+      logger.info('Processing S3 event', s3EventStr)
       const s3Event = JSON.parse(s3EventStr)
   
       for (const record of s3Event.Records) {
@@ -25,30 +29,36 @@ export const handler: SNSHandler = async (event: SNSEvent) => {
         await processImage(record) // processes the image and stores the processed image in a separate S3 bucket
       }
     }
-  }
+})
+
+handler.use(
+  cors({
+    credentials: true
+  })
+)
 
 async function processImage(record: S3EventRecord) {
   const key = record.s3.object.key  // Check cloudwatch logs to see how record looks like
   const imageUrl = `https://${imagesBucketName}.s3.amazonaws.com/${key}`  // construct imageUrl from the key name
-  console.log('Processing S3 item with key: ', key)
-  console.log("The image URL is ", imageUrl)
+  logger.info('Processing S3 item with key: ', key)
+  logger.info("The image URL is ", imageUrl)
 
   // We're getting the image from the URL instead of from S3 like in the lecture
   // This is because we also need the URL to obtain the prediction results from the model endpoint
 
   // Resize and apply text overlay to image where the text is obtained from the model prediction
     // Get predictions from model endpoint which serves as the text to be overlayed
-  console.log("Getting predictions from model endpoint")
+  logger.info("Getting predictions from model endpoint")
   const predictionResults = await getPredictions(imageUrl)
   const breeds = predictionResults.top5
   const probabilities = predictionResults.prob5
 
-  console.log("Resizing and applying text overlay to image")
+  logger.info("Resizing and applying text overlay to image")
   const image = await resizeAndApplyTextOverlay(imageUrl, breeds, probabilities)
   
   // Write image to processed image S3 bucket
   const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)  // had to add toString() to get rid of error
-  console.log(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
+  logger.info(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
   await s3.putObject({
         Bucket: imagesProcessedBucketName,
         // Key: `${key}.jpg`,
@@ -80,12 +90,12 @@ async function resizeAndApplyTextOverlay(imageUrl: string, classes: string[], pr
 
   // Reading image
   const image = await Jimp.read(imageUrl);
-  console.log("Read image. Image has size: ", image.bitmap.width, image.bitmap.height)
+  logger.info("Read image. Image has size: ", image.bitmap.width, image.bitmap.height)
   // Resize image
   image.resize(1000, Jimp.AUTO);
   const width = image.bitmap.width;
   const height = image.bitmap.height;
-  console.log("Resized image. Image has size: ", width, height)
+  logger.info("Resized image. Image has size: ", width, height)
 
   // Defining the text font and create the overlay with a custom color
   // The text is going to be 5 lines of "<breed> - <probability>"
@@ -101,13 +111,23 @@ async function resizeAndApplyTextOverlay(imageUrl: string, classes: string[], pr
 }
 
 async function getPredictions(imageUrl: string): Promise<any> {
-  console.log(`Sending image from URL ${imageUrl} to model endpoint`)
+  /* 
+    Gets predictions from model endpoint; The models API accepts {"url": <imageUrl>} in the request body and returns 
+
+    {
+     "url": <same url>, 
+     "top5": <top5 predictions>, "
+     "prob5": <probabilities of top5 predictions>
+    }
+
+  */
+  logger.info(`Sending image from URL ${imageUrl} to model endpoint`)
   const result = await Axios.post(modelEndpoint, {
     "url": imageUrl
   })
-  console.log("Predictions obtained from model endpoint")
-  console.log("Top 5 Predictions: ", result.data.top5)
-  console.log("Probabilities: ", result.data.prob5)
+  logger.info("Predictions obtained from model endpoint")
+  logger.info("Top 5 Predictions: ", result.data.top5)
+  logger.info("Probabilities: ", result.data.prob5)
 
   return result.data
 }
@@ -130,8 +150,8 @@ async function updateTable(imageId: string, processedImageUrl: string, newTitle:
   }).promise()
 
   const item = result.Items[0]
-  console.log("Obtained item corresponding to imageId from DynamoDB: ", item)
-  console.log("Replacing table item by adding the processedImageUrl: ", processedImageUrl)
+  logger.info("Obtained item corresponding to imageId from DynamoDB: ", item)
+  logger.info("Replacing table item by adding the processedImageUrl: ", processedImageUrl)
   
   // Now also updating the title so that it can be displayed in the frontend
   const newItem = {

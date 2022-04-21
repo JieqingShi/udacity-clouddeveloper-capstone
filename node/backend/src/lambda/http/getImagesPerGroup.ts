@@ -1,14 +1,18 @@
-import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
 import * as AWS  from 'aws-sdk'
+import * as middy from 'middy'
+import { cors } from 'middy/middlewares'
+import { createLogger } from '../../utils/logger'
 
 const docClient = new AWS.DynamoDB.DocumentClient()
-
 const groupsTable = process.env.GROUPS_TABLE
-const imagesTable = process.env.IMAGES_TABLE  // Todo: Add another table for resized images that is accessed by frontend
+const imagesTable = process.env.IMAGES_TABLE
 
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Caller event', event)
+const logger = createLogger('getImagesPerGroupLogger')
+
+export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  logger.info('Caller event', event)
   const groupId = event.pathParameters.groupId;
 
   const validGroupId = await groupExists(groupId)
@@ -17,9 +21,6 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   if (!validGroupId) {
     return {
       statusCode: 404,
-      headers: {
-        'Access-Control-Allow-Origin': '*'
-      },
       body: JSON.stringify({
         error: 'Group does not exist'
       })
@@ -31,15 +32,17 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
 
   return {
     statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*'
-    },
-    // body: ''
     body: JSON.stringify({
         items: images
     })
   }
-}
+})
+
+handler.use(
+  cors({
+    credentials: true
+  })
+)
 
 
 async function groupExists(groupId: string) {
@@ -52,7 +55,7 @@ async function groupExists(groupId: string) {
       })
       .promise()
   
-    console.log('Get group: ', result)
+    logger.info('Get group: ', result)
     return !!result.Item  // !! converts to boolean; if result.Item is not null, return true (the first ! converts it to true, the second ! to false)
 }
 
@@ -65,10 +68,10 @@ async function getImagesPerGroup(groupId: string) {
         ExpressionAttributeValues: {
           ':groupId': groupId
         },
-        ScanIndexForward: false  // reverts order of images in partition -> return latest image first
+        ScanIndexForward: false  // reverts order of images in partition -> return latest image first; sort key is timestamp
       })
       .promise()
   
-    console.log('Query images: ', result)
+    logger.info('Query images: ', result)
     return result.Items
 }

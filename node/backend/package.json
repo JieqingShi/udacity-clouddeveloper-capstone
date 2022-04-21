@@ -12,7 +12,8 @@
     "jsonwebtoken": "^8.5.1",
     "middy": "^0.36.0",
     "source-map-support": "^0.5.10",
-    "uuid": "^3.3.2"
+    "uuid": "^3.3.2",
+    "winston": "^3.7.2"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.17",
