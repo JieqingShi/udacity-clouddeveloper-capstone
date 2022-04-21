@@ -37,10 +37,17 @@ async function processImage(record: S3EventRecord) {
   // This is because we also need the URL to obtain the prediction results from the model endpoint
 
   // Resize and apply text overlay to image where the text is obtained from the model prediction
-  const image = await resizeAndApplyTextOverlay(imageUrl)
+    // Get predictions from model endpoint which serves as the text to be overlayed
+  console.log("Getting predictions from model endpoint")
+  const predictionResults = await getPredictions(imageUrl)
+  const breeds = predictionResults.top5
+  const probabilities = predictionResults.prob5
+
+  console.log("Resizing and applying text overlay to image")
+  const image = await resizeAndApplyTextOverlay(imageUrl, breeds, probabilities)
   
   // Write image to processed image S3 bucket
-  const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)
+  const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)  // had to add toString() to get rid of error
   console.log(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
   await s3.putObject({
         Bucket: imagesProcessedBucketName,
@@ -54,14 +61,20 @@ async function processImage(record: S3EventRecord) {
   // This is because the table is organized by groupId as the partition key and the timestamp as the sort key
   // If we update the item then we would have to provide these two keys to uniquely identify the item - this is possible but not really elegant
   // If we replace the item (where we leave all values intact and just update the processedImageUrl) then we can simply provide the item itself
-  await updateTable(key)
+  const processedImageUrl = `https://${imagesProcessedBucketName}.s3.amazonaws.com/${key}`
+  // The new title is going to be the predicted class with the highest probability (i.e. the top prediction); the arrays are already sorted by likelihood
+  const newTitle = `${breeds[0].split("_").join(" ")} - ${Math.round(probabilities[0]*10000)/100}%`
+  await updateTable(key, processedImageUrl, newTitle)
 }
 
-async function resizeAndApplyTextOverlay(imageUrl) {
+async function resizeAndApplyTextOverlay(imageUrl: string, classes: string[], probabilities: number[]) {
   /* 
   
     What this does: Reads image from an URL, resizes it, applies a text overlay and returns the image as a buffer
-    The text is obtained from the model prediction endpoint
+    The text is obtained from the model prediction endpoint which returns the top 5 predictions and their probabilities as arrays
+    The text is supposed to then show these predictions and is expected to be in the format <predicted class> - <probability> \n <predicted class> - <probability> \n ...
+    Unfortunately the text cannot be constructed beforehand and passed as an input argument as the overlayed text will then be malformatted in the image (tested it, does not work)
+    This means the overlay text has to be constructed inside this function, taking the two arrays as input
     The size of the new image is fixed
   */
 
@@ -73,19 +86,13 @@ async function resizeAndApplyTextOverlay(imageUrl) {
   const width = image.bitmap.width;
   const height = image.bitmap.height;
   console.log("Resized image. Image has size: ", width, height)
-  
-  // Get predictions from model endpoint which serves as the text to be overlayed
-  console.log("Getting predictions from model endpoint")
-  const predictionResults = await getPredictions(imageUrl)
-  const breeds = predictionResults.top5
-  const probabilities = predictionResults.prob5
 
   // Defining the text font and create the overlay with a custom color
   // The text is going to be 5 lines of "<breed> - <probability>"
   var textImage = new Jimp(width, height, 0x0);
   const font = await Jimp.loadFont(Jimp.FONT_SANS_16_BLACK);
-  for (let i = 0; i < breeds.length; i++) {
-    textImage.print(font, 10, 10 + i * 20, `${breeds[i].split("_").join(" ")}: ${Math.round(probabilities[i]*10000)/100}%`);
+  for (let i = 0; i < classes.length; i++) {
+    textImage.print(font, 10, 10 + i * 20, `${classes[i].split("_").join(" ")}: ${Math.round(probabilities[i]*10000)/100}%`);
   }
   textImage.color([{ apply: 'xor', params: ['#063970'] }])
   image.blit(textImage, 0, 0)
@@ -110,7 +117,7 @@ async function getPredictions(imageUrl: string): Promise<any> {
 // This is because the table is organized by groupId as the partition key and the timestamp as the sort key
 // If we update the item then we would have to provide these two keys to uniquely identify the item - this is possible but not really elegant
 // If we replace the item (where we leave all values intact and just update the processedImageUrl) then we can simply provide the item itself// We need to store the processed image Url in dynamodb so that the client can access it. There are multiple ways to do this.
-async function updateTable(imageId: string) {
+async function updateTable(imageId: string, processedImageUrl: string, newTitle: string) {
 
   // First get item from DynamoDB
   const result = await docClient.query({
@@ -124,13 +131,17 @@ async function updateTable(imageId: string) {
 
   const item = result.Items[0]
   console.log("Obtained item corresponding to imageId from DynamoDB: ", item)
-
-  const processedImageUrl = `https://${imagesProcessedBucketName}.s3.amazonaws.com/${imageId}`
   console.log("Replacing table item by adding the processedImageUrl: ", processedImageUrl)
   
+  // Now also updating the title so that it can be displayed in the frontend
   const newItem = {
-    ...item,
-    processedImageUrl
+    groupId: item.groupId,
+    timestamp: item.timestamp,
+    imageId: item.imageId,
+    imageUrl: item.imageUrl,
+    // Updating these two things
+    processedImageUrl: processedImageUrl,
+    title: newTitle
   }
 
   await docClient
@@ -141,15 +152,5 @@ async function updateTable(imageId: string) {
 
 }
 
-// OPTION1 (seems hacky, requires additional resource): we can create a new dynamodb table that mirrors the image table, with the difference being that the image Url is that of the processed image bucket.
-// To do this we can obtain the imageId (=key) from the S3 event and use it to construct the processed image Url. Then add code here in this function to create a new record in the dynamodb table.
-// (similar to createImage.ts)
-
-// OPTION2 (probably most elegant but still requires additional resource): add a S3 Event Listener lambda handler to monitor to the processed image bucket and populate the processed image table with the URL once a new item is being added to the bucket
-
-// OPTION3 (probably easiest): we use the existing image table, add a API Gateway lambda handler for replacing the imageURL/adding a new key for the processed image url.
-// Then call this API Gateway from the frontend (or here via axios)
-
-// Trying option 3 for now
 
 

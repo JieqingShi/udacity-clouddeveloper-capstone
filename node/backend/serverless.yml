@@ -45,8 +45,9 @@ provider:
     REGION: eu-west-1
     THUMBNAILS_S3_BUCKET: serverless-udagram-thumbnail-redux-${self:provider.stage}
     IMAGES_PROCESSED_S3_BUCKET: serverless-udagram-processed-images-redux-${self:provider.stage}
-    AUTH_0_SECRET_ID: Auth0Secret-${self:provider.stage}
-    AUTH_0_SECRET_FIELD: auth0Secret
+    # AUTH_0_SECRET_ID: Auth0Secret-${self:provider.stage}
+    # AUTH_0_SECRET_FIELD: auth0Secret
+    AUTH_0_JWKS_URL: https://dev-75ascs57.eu.auth0.com/.well-known/jwks.json
     MODEL_ENDPOINT: https://ot7wogofk9.execute-api.eu-west-1.amazonaws.com/dev/predict
 
   iamRoleStatements:
@@ -126,8 +127,8 @@ functions:
           path: /groups
           method: post
           cors: true
-          # authorizer: Auth
-          authorizer: RS256Auth
+          # authorizer: RS256Auth
+          authorizer: Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new group
@@ -158,8 +159,8 @@ functions:
           path: /groups/{groupId}/images
           method: post
           cors: true
-          # authorizer: Auth
-          authorizer: RS256Auth
+          authorizer: Auth
+          # authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
           documentation:
             summary: Create a new image
@@ -167,6 +168,7 @@ functions:
             requestModels:
               'application/json': ImageRequest
 
+  # Not needed anymore; we do not use the API Gateway to update the image URL but directly in the S3 lambda handler for processing Images
   UpdateImage:
     handler: src/lambda/http/updateImage.handler
     events:
@@ -174,9 +176,9 @@ functions:
           path: images/{imageId}
           method: patch
           cors: true
-          # authorizer: Auth
-          authorizer: RS256Auth
-          
+          authorizer: Auth
+          # authorizer: RS256Auth
+
   # perhaps these three lambda functions will not be needed
   # GetProcessedImagesPerGroup:
   #   handler: src/lambda/http/getProcessedImagesPerGroup.handler

@@ -1,161 +1,26 @@
-// import {APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult, APIGatewayAuthorizerHandler} from 'aws-lambda'
-// import 'source-map-support/register'
-
-// export const handler: APIGatewayAuthorizerHandler = async (event: APIGatewayTokenAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
-//   try {
-//       verifyToken(event.authorizationToken)
-//       console.log('User is authorized')
-
-//       return {
-//         principalId: 'user',
-//         policyDocument: {
-//             Version: '2012-10-17',
-//             Statement: [
-//                 {
-//                     Action: 'execute-api:Invoke',
-//                     Effect: 'Allow',
-//                     Resource: '*'
-//                 }
-//             ]
-//         }
-//       }
-//   } catch (e) {
-//       console.log('User is not authorized', e.message)
-
-//       return {
-//         principalId: 'user',
-//         policyDocument: {
-//             Version: '2012-10-17',
-//             Statement: [
-//                 {
-//                     Action: 'execute-api:Invoke',
-//                     Effect: 'Deny',
-//                     Resource: '*'
-//                 }
-//             ]
-//         }
-//       }
-//   }
-// }
-
-// function verifyToken (authHeader: string): void {
-//   if (!authHeader)
-//     throw new Error('No authentication header')
-
-//   if (!authHeader.toLowerCase().startsWith('bearer '))
-//     throw new Error('Invalid authentication header')
-
-//   const split = authHeader.split(' ')
-//   const token = split[1]
-
-//   if (token !== '12345abcde')
-//     throw new Error('Invalid token')
-// }
-
-
-// the CustomAuthorize... from lecture are deprecated
-// import {APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult, APIGatewayAuthorizerHandler} from 'aws-lambda'
-// import 'source-map-support/register'
-// import {verify} from 'jsonwebtoken'
-// import {JwtToken} from '../../auth/JwtToken'
-// import * as AWS from 'aws-sdk'
-
-// const secretId = process.env.AUTH_0_SECRET_ID
-// const secretField = process.env.AUTH_0_SECRET_FIELD
-
-// const client = new AWS.SecretsManager()
-
-// let cachedSecret: string
-
-
-// const auth0Secret = process.env.AUTH_0_SECRET
-// export const handler: APIGatewayAuthorizerHandler = async (event: APIGatewayTokenAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
-//   try {
-//       const decodedToken = await verifyToken(event.authorizationToken)
-//       console.log('User is authorized')
-
-//       return {
-//         principalId: decodedToken.sub,
-//         policyDocument: {
-//             Version: '2012-10-17',
-//             Statement: [
-//                 {
-//                     Action: 'execute-api:Invoke',
-//                     Effect: 'Allow',
-//                     Resource: '*'
-//                 }
-//             ]
-//         }
-//       }
-//   } catch (e) {
-//       console.log('User is not authorized', e.message)
-
-//       return {
-//         principalId: 'user',
-//         policyDocument: {
-//             Version: '2012-10-17',
-//             Statement: [
-//                 {
-//                     Action: 'execute-api:Invoke',
-//                     Effect: 'Deny',
-//                     Resource: '*'
-//                 }
-//             ]
-//         }
-//       }
-//   }
-// }
-
-// async function getSecret() {
-//     if (cachedSecret) return cachedSecret
-
-//     const data = await client.getSecretValue({
-//         SecretId: secretId
-//     }).promise()
-
-//     cachedSecret = data.SecretString
-
-//     return JSON.parse(cachedSecret)
-// }
-
-// async function verifyToken (authHeader: string): Promise<JwtToken> {
-//   if (!authHeader)
-//     throw new Error('No authentication header')
-
-//   if (!authHeader.toLowerCase().startsWith('bearer '))
-//     throw new Error('Invalid authentication header')
-
-//   const split = authHeader.split(' ')
-//   const token = split[1]
-
-//   const secretObject: any = await getSecret()
-//   const secret = secretObject[secretField]    
-
-//   return verify(token, secret) as JwtToken
-// }
-
 import { APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as middy from 'middy'
-import { secretsManager } from 'middy/middlewares'
-
-import { verify } from 'jsonwebtoken'
+import { verify, decode } from 'jsonwebtoken'
+import { createLogger } from '../../utils/logger'
+import Axios from 'axios'
+import { Jwt } from '../../auth/Jwt'
 import { JwtToken } from '../../auth/JwtToken'
 
-const secretId = process.env.AUTH_0_SECRET_ID
-const secretField = process.env.AUTH_0_SECRET_FIELD
+const logger = createLogger('auth')
 
-// wrap everything into this handler function
-export const handler = middy(async (event: APIGatewayTokenAuthorizerEvent, context): Promise<APIGatewayAuthorizerResult> => {
+// To get this URL you need to go to an Auth0 page -> Show Advanced Settings -> Endpoints -> JSON Web Key Set
+const jwksUrl = process.env.AUTH_0_JWKS_URL
+
+export const handler = async (
+  event: APIGatewayTokenAuthorizerEvent
+): Promise<APIGatewayAuthorizerResult> => {
+  logger.info('Authorizing a user', event.authorizationToken)
   try {
-    const decodedToken = verifyToken(
-      event.authorizationToken,
-      context.AUTH0_SECRET[secretField]
-    )
-    console.log('User was authorized', decodedToken)
+    const jwtToken = await verifyToken(event.authorizationToken)
+    logger.info('User was authorized', jwtToken)
 
     return {
-      principalId: decodedToken.sub,
+      principalId: jwtToken.sub,
       policyDocument: {
         Version: '2012-10-17',
         Statement: [
@@ -168,7 +33,7 @@ export const handler = middy(async (event: APIGatewayTokenAuthorizerEvent, conte
       }
     }
   } catch (e) {
-    console.log('User was not authorized', e.message)
+    logger.error('User not authorized', { error: e.message })
 
     return {
       principalId: 'user',
@@ -184,11 +49,50 @@ export const handler = middy(async (event: APIGatewayTokenAuthorizerEvent, conte
       }
     }
   }
-})
+}
 
-function verifyToken(authHeader: string, secret: string): JwtToken {
-  if (!authHeader)
-    throw new Error('No authentication header')
+async function getCert(jwksUrl: string): Promise<any> {
+  const response = await Axios.get(jwksUrl)
+  const keys = response.data.keys
+
+  if (!keys || !keys.length)
+    return new Error('The JWKS endpoint did not contain any keys');
+
+  // https://auth0.com/blog/navigating-rs256-and-jwks/
+  const signingKeys = keys.filter(key =>
+      key.use === 'sig'
+      && key.kty === 'RSA'
+      && key.kid
+      && key.e
+      && key.n
+      && ((key.x5c && key.x5c.length) || (key.n && key.e))  // Has useful public keys
+  )
+
+  if (!signingKeys.length)
+    return new Error('The JWKS endpoint did not contain any signature verification keys')
+
+  // Read first jwk see explanation here https://auth0.com/docs/tokens/json-web-tokens/json-web-key-sets
+  const signedKey = signingKeys[0]
+  const cert = signedKey.x5c[0]
+  const certBody = `-----BEGIN CERTIFICATE-----\n${cert}\n-----END CERTIFICATE-----`
+
+  return certBody
+}
+
+
+async function verifyToken(authHeader: string): Promise<JwtToken> {
+  const token = getToken(authHeader)
+  const jwt: Jwt = decode(token, { complete: true }) as Jwt
+  logger.info('Decoded JWT: ', jwt)
+  // You can read more about how to do this here: https://auth0.com/blog/navigating-rs256-and-jwks/
+
+  const cert = await getCert(jwksUrl)
+  const result = verify(token, cert, { algorithms: ['RS256'] }) as JwtToken
+  return result
+}
+
+function getToken(authHeader: string): string {
+  if (!authHeader) throw new Error('No authentication header')
 
   if (!authHeader.toLowerCase().startsWith('bearer '))
     throw new Error('Invalid authentication header')
@@ -196,20 +100,5 @@ function verifyToken(authHeader: string, secret: string): JwtToken {
   const split = authHeader.split(' ')
   const token = split[1]
 
-  return verify(token, secret) as JwtToken
+  return token
 }
-
-handler.use(
-  secretsManager({
-    cache: true,
-    cacheExpiryInMillis: 60000,
-    // Throw an error if can't read the secret
-    throwOnFailedCall: true,
-    secrets: {
-      AUTH0_SECRET: secretId
-    }
-  })
-)
-
-
-
