@@ -32,8 +32,9 @@ export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGat
   const imageItem = await createImageEntryInTable(createImageRequest, groupId)
 
   logger.info(`Generating upload URL for image storage`)
-  const uploadUrl = attachmentUtils.getUploadUrl(imageItem.imageId)
+  const uploadUrl = await attachmentUtils.getUploadUrl(imageItem.imageId)
   logger.info(`Upload URL: ${uploadUrl}`)
+  console.log(`Upload URL: ${uploadUrl}`)
   
   return {
     statusCode: 201,

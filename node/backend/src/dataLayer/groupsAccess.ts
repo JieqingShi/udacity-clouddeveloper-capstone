@@ -43,6 +43,15 @@ export class GroupAccess {
     return !!result.Item
   }
 
+  async deleteGroup(group: Group): Promise<void> {
+    await this.docClient.delete({
+      TableName: this.groupsTable,
+      Key: {
+        id: group.id
+      }
+    }).promise()
+  }
+
 }
 
 
