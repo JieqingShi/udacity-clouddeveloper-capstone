@@ -176,13 +176,7 @@ functions:
           cors: true
           # authorizer: Auth
           authorizer: RS256Auth
-          reqValidatorName: RequestBodyValidator
-          documentation:
-            summary: Update an image
-            description: Update an image
-            requestModels:
-              'application/json': ImageRequest
-
+          
   # perhaps these three lambda functions will not be needed
   # GetProcessedImagesPerGroup:
   #   handler: src/lambda/http/getProcessedImagesPerGroup.handler
@@ -454,6 +448,7 @@ resources:
               Resource: 'arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*'
         Bucket: !Ref ImagesProcessedBucket
 
+    # For option 2 of updating processed image url would probably have to duplicate these two entrys
     SNSTopicPolicyImages:
       Type: AWS::SNS::TopicPolicy
       Properties:
