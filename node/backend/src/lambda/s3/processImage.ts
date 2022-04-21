@@ -1,11 +1,11 @@
 import { SNSEvent, SNSHandler, S3EventRecord } from 'aws-lambda'
 import 'source-map-support/register'
 import * as AWS from 'aws-sdk'
-import Jimp from 'jimp/es'
-import Axios from 'axios'
 import * as middy from 'middy'
 import { cors } from 'middy/middlewares'
 import { createLogger } from '../../utils/logger'
+import { getPredictions } from '../../utils/modelprediction'
+import { resizeAndApplyTextOverlay } from '../../utils/imageprocessing'
 
 const s3 = new AWS.S3()
 const docClient = new AWS.DynamoDB.DocumentClient()
@@ -13,7 +13,6 @@ const imagesTable = process.env.IMAGES_TABLE
 const imageIdIndex = process.env.IMAGE_ID_INDEX
 const imagesBucketName = process.env.IMAGES_S3_BUCKET
 const imagesProcessedBucketName = process.env.IMAGES_PROCESSED_S3_BUCKET
-const modelEndpoint = process.env.MODEL_ENDPOINT
 
 const logger = createLogger('processImage')
 
@@ -46,18 +45,17 @@ async function processImage(record: S3EventRecord) {
   // We're getting the image from the URL instead of from S3 like in the lecture
   // This is because we also need the URL to obtain the prediction results from the model endpoint
 
-  // Resize and apply text overlay to image where the text is obtained from the model prediction
-    // Get predictions from model endpoint which serves as the text to be overlayed
+  
+  // Get predictions from model endpoint which serves as the text to be overlayed
   logger.info("Getting predictions from model endpoint")
   const predictionResults = await getPredictions(imageUrl)
   const breeds = predictionResults.top5
   const probabilities = predictionResults.prob5
+  logger.info(`Top 5 predictions: ${breeds} and their probabilities: ${probabilities} `)
 
   logger.info("Resizing and applying text overlay to image")
-  const image = await resizeAndApplyTextOverlay(imageUrl, breeds, probabilities)
-  
-  // Write image to processed image S3 bucket
-  const convertedBuffer = await image.getBufferAsync(Jimp.AUTO)  // had to add toString() to get rid of error
+  const convertedBuffer = await resizeAndApplyTextOverlay(imageUrl, breeds, probabilities)
+
   logger.info(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
   await s3.putObject({
         Bucket: imagesProcessedBucketName,
@@ -75,61 +73,6 @@ async function processImage(record: S3EventRecord) {
   // The new title is going to be the predicted class with the highest probability (i.e. the top prediction); the arrays are already sorted by likelihood
   const newTitle = `${breeds[0].split("_").join(" ")} - ${Math.round(probabilities[0]*10000)/100}%`
   await updateTable(key, processedImageUrl, newTitle)
-}
-
-async function resizeAndApplyTextOverlay(imageUrl: string, classes: string[], probabilities: number[]) {
-  /* 
-  
-    What this does: Reads image from an URL, resizes it, applies a text overlay and returns the image as a buffer
-    The text is obtained from the model prediction endpoint which returns the top 5 predictions and their probabilities as arrays
-    The text is supposed to then show these predictions and is expected to be in the format <predicted class> - <probability> \n <predicted class> - <probability> \n ...
-    Unfortunately the text cannot be constructed beforehand and passed as an input argument as the overlayed text will then be malformatted in the image (tested it, does not work)
-    This means the overlay text has to be constructed inside this function, taking the two arrays as input
-    The size of the new image is fixed
-  */
-
-  // Reading image
-  const image = await Jimp.read(imageUrl);
-  logger.info("Read image. Image has size: ", image.bitmap.width, image.bitmap.height)
-  // Resize image
-  image.resize(1000, Jimp.AUTO);
-  const width = image.bitmap.width;
-  const height = image.bitmap.height;
-  logger.info("Resized image. Image has size: ", width, height)
-
-  // Defining the text font and create the overlay with a custom color
-  // The text is going to be 5 lines of "<breed> - <probability>"
-  var textImage = new Jimp(width, height, 0x0);
-  const font = await Jimp.loadFont(Jimp.FONT_SANS_16_BLACK);
-  for (let i = 0; i < classes.length; i++) {
-    textImage.print(font, 10, 10 + i * 20, `${classes[i].split("_").join(" ")}: ${Math.round(probabilities[i]*10000)/100}%`);
-  }
-  textImage.color([{ apply: 'xor', params: ['#063970'] }])
-  image.blit(textImage, 0, 0)
-  
-  return image
-}
-
-async function getPredictions(imageUrl: string): Promise<any> {
-  /* 
-    Gets predictions from model endpoint; The models API accepts {"url": <imageUrl>} in the request body and returns 
-
-    {
-     "url": <same url>, 
-     "top5": <top5 predictions>, "
-     "prob5": <probabilities of top5 predictions>
-    }
-
-  */
-  logger.info(`Sending image from URL ${imageUrl} to model endpoint`)
-  const result = await Axios.post(modelEndpoint, {
-    "url": imageUrl
-  })
-  logger.info("Predictions obtained from model endpoint")
-  logger.info("Top 5 Predictions: ", result.data.top5)
-  logger.info("Probabilities: ", result.data.prob5)
-
-  return result.data
 }
 
 // Update the table with the processed image URL
