@@ -31,7 +31,8 @@ export class CreateImage extends React.PureComponent<
   state: CreateImageState = {
     title: '',
     file: undefined,
-    uploadState: UploadState.NoUpload
+    uploadState: UploadState.NoUpload,
+
   }
 
   handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,14 +68,15 @@ export class CreateImage extends React.PureComponent<
 
       this.setUploadState(UploadState.UploadingFile)
       await uploadFile(uploadInfo.uploadUrl, this.state.file)
-      // add model prediction here!
-      const imageUrl = uploadInfo.uploadUrl.split("?")[0]
-      const modelResult = await generatePrediction(imageUrl)
-      console.log('Model result', modelResult)
+      //add model prediction here!
+      // const imageUrl = uploadInfo.uploadUrl.split("?")[0]
+      // const modelResult = await generatePrediction(imageUrl)
+      // console.log('Model result', modelResult)
       
-      const breed = modelResult.top1[0].split("_").join(" ")
-      const probability = Math.round(modelResult.prob[0] * 100)
-      alert(`Image was uploaded and model result was generated. This image shows a ${breed} with a ${probability}% probability`)
+      // const breed = modelResult.top5[0].split("_").join(" ")
+      // const probability = Math.round(modelResult.prob5[0] * 100)
+      // alert(`Image was uploaded and model result was generated. This image shows a ${breed} with a ${probability}% probability`)
+      alert("Image was uploaded")
     
     } catch (e) {
       alert('Could not upload an image: ' + e.message)

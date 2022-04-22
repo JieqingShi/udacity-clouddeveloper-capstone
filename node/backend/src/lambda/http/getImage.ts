@@ -1,41 +1,29 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, APIGatewayProxyHandler } from 'aws-lambda'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as AWS  from 'aws-sdk'
+import * as middy from 'middy'
+import { cors, httpErrorHandler } from 'middy/middlewares'
+import { createLogger } from '../../utils/logger'
+import { getImageById } from '../../businessLogic/images'
 
-const docClient = new AWS.DynamoDB.DocumentClient()
+const logger = createLogger('getImagesLogger')
 
-const imagesTable = process.env.IMAGES_TABLE
-const imageIdIndex = process.env.IMAGE_ID_INDEX
-
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Caller event', event)
+export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  logger.info('Processing event', event)
   const imageId = event.pathParameters.imageId
 
-  const result = await docClient.query({
-    TableName: imagesTable,
-    IndexName: imageIdIndex,
-    KeyConditionExpression: 'imageId = :imageId',
-    ExpressionAttributeValues: {
-        ':imageId': imageId
-    }
-  }).promise()
-
-  if (result.Count !== 0) {  // there are entries corresponding to the imageId in the table (Count > 0)
-      return {
-          statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify(result.Items[0])  // why 0?
-      }
-  }
-
-  // there is no image with this id
+  const result = await getImageById(imageId)
   return {
-    statusCode: 404,
-    headers: {
-      'Access-Control-Allow-Origin': '*'
-    },
-    body: ''
+    statusCode: 200,
+    body: JSON.stringify({
+      result
+    })
   }
-}
+})
+
+handler
+.use(httpErrorHandler())
+.use(
+  cors({
+    credentials: true
+  })
+)

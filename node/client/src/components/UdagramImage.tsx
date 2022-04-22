@@ -19,8 +19,11 @@ export class UdagramImage extends React.PureComponent<
         <Card.Content>
           <Card.Header>{this.props.image.title}</Card.Header>
           <Card.Description>{this.props.image.timestamp}</Card.Description>
-          {this.props.image.imageUrl && (
+          {/* {this.props.image.imageUrl && (
             <Image src={this.props.image.imageUrl} />
+          )} */}
+          {this.props.image.processedImageUrl && (
+            <Image src={this.props.image.processedImageUrl} />
           )}
         </Card.Content>
       </Card>

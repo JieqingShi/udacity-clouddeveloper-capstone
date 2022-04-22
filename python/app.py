@@ -1,3 +1,10 @@
+# NOTE: it has no effect changing the code and then do sls deploy! The image has to be rebuilt!
+# Steps: Rebuild the container and push to ECR
+# Note new tag and digest and adapt it in serverless.yaml file
+# Deploy
+# Note new endpoint name and change it in node/backend/serverless.yaml environment variables as well as in client/src/config.ts
+
+
 import json
 import logging
 # import boto3
@@ -36,8 +43,14 @@ def lambda_handler(event, context):
         body = json.loads(event["body"])
         image_url = body["url"]
         logger.info(f"image url: {image_url}")
-
-        img = get_image_from_url(image_url)
+        try:
+            img = get_image_from_url(image_url)
+        except Exception as e:
+            logger.error(f"Error getting image from url: {image_url}")
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": str(e)})
+            }
 
         pred_logits, top1, top5 = classifier.predict(img)
         pred_probabilities = classifier.get_probs()
@@ -54,14 +67,14 @@ def lambda_handler(event, context):
             "headers": {"Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Credentials": True},
-            "body": json.dumps({"url": image_url,  # todo: remove it and replace it with some message
-                                "top1": top1_class,  # todo: rename it
-                                "prob": top1_probs})  # todo: rename it
+             "body": json.dumps({"url": image_url,  
+                                 "top5": top5_class,
+                                 "prob5": top5_probs})  
         }
     except Exception as e:
         logger.error(f"Error: {e}")
         return {
-            "statusCode": 500,  # todo: should be 400
+            "statusCode": 500,
             "headers": {"Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Credentials": True},

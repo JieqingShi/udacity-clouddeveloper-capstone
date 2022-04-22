@@ -1,27 +1,23 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as AWS  from 'aws-sdk'
-import * as uuid from 'uuid'
 import * as middy from 'middy'
-import { cors } from 'middy/middlewares'
+import { cors, httpErrorHandler } from 'middy/middlewares'
+import { AttachmentUtils } from '../../dataLayer/attachmentUtils'
+import { createLogger } from '../../utils/logger'
+import { validateGroup } from '../../businessLogic/groups'
+import { createImageEntryInTable } from '../../businessLogic/images'
+import { CreateImageRequest } from '../../requests/CreateImageRequest'
 
-const docClient = new AWS.DynamoDB.DocumentClient()
-const s3 = new AWS.S3({
-  signatureVersion: 'v4'
-})
-
-const groupsTable = process.env.GROUPS_TABLE
-const imagesTable = process.env.IMAGES_TABLE
-const bucketName = process.env.IMAGES_S3_BUCKET
-const urlExpiration = process.env.SIGNED_URL_EXPIRATION
-const model_endpoint = process.env.MODEL_ENDPOINT
+const attachmentUtils = new AttachmentUtils()
+const logger = createLogger('createImageLogger')
 
 export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Caller event', event)
+  logger.info('Process event', event)
   const groupId = event.pathParameters.groupId
-  const validGroupId = await groupExists(groupId)
 
-  if (!validGroupId) {
+  const groupExists = await validateGroup(groupId)
+
+  if (!groupExists) {
     return {
       statusCode: 404,
       body: JSON.stringify({
@@ -29,173 +25,32 @@ export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGat
       })
     }
   }
+  logger.info(`Group with Id ${groupId} exists`)
 
-  const imageId = uuid.v4()
-  const newItem = await createImage(groupId, imageId, event)
+  const createImageRequest: CreateImageRequest = JSON.parse(event.body)  // contains title
+  logger.info(`Storing image item in Table with the following content: ${JSON.stringify(createImageRequest)}`)
+  const imageItem = await createImageEntryInTable(createImageRequest, groupId)
 
-  const url = getUploadUrl(imageId)
-
+  logger.info(`Generating upload URL for image storage for image with id ${imageItem.imageId}`)
+  const uploadUrl = await attachmentUtils.getUploadUrl(imageItem.imageId)
+  logger.info(`Upload URL: ${uploadUrl}`)
+  
   return {
     statusCode: 201,
     body: JSON.stringify({
-      newItem: newItem,
-      uploadUrl: url
+      newItem: imageItem,
+      uploadUrl: uploadUrl
     })
   }
 })
 
-handler.use(
+handler
+.use(httpErrorHandler())
+.use(
   cors({
     credentials: true
   })
 )
-
-async function groupExists(groupId: string) {
-  const result = await docClient
-    .get({
-      TableName: groupsTable,
-      Key: {
-        id: groupId
-      }
-    })
-    .promise()
-
-  console.log('Get group: ', result)
-  return !!result.Item
-}
-
-async function createImage(groupId: string, imageId: string, event: any) {
-  const timestamp = new Date().toISOString()
-  const newImage = JSON.parse(event.body)
-
-  const newItem = {
-    groupId,
-    timestamp,
-    imageId,
-    ...newImage,
-    imageUrl: `https://${bucketName}.s3.amazonaws.com/${imageId}`
-  }
-  console.log('Storing new item: ', newItem)
-
-  await docClient
-    .put({
-      TableName: imagesTable,
-      Item: newItem
-    })
-    .promise()
-
-  return newItem
-}
-
-function getUploadUrl(imageId: string) {
-  return s3.getSignedUrl('putObject', {
-    Bucket: bucketName,
-    Key: imageId,
-    Expires: parseInt(urlExpiration)
-  })
-}
-
-// async function getPredictions(imageUrl: string){
-//   const result = await axios.post(model_endpoint, {
-//     "url": imageUrl
-//   })
-//   console.log(predictions)
-// }
-
-
-
-// import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
-// import 'source-map-support/register'
-// import * as AWS  from 'aws-sdk'
-// import * as uuid from 'uuid'
-
-// import * as middy from 'middy'
-// import { cors } from 'middy/middlewares'
-
-// const docClient = new AWS.DynamoDB.DocumentClient()
-
-// const s3 = new AWS.S3({
-//     signatureVersion: 'v4'
-// })
-
-// const groupsTable = process.env.GROUPS_TABLE
-// const imagesTable = process.env.IMAGES_TABLE
-// const bucketName = process.env.IMAGES_S3_BUCKET
-// const urlExpiration = 300
-
-// // export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-// //   console.log('Caller event', event)
-// //   const groupId = event.pathParameters.groupId
-// //   const validGroupId = await groupExists(groupId)
-
-// //   if (!validGroupId) {
-// //     return {
-// //       statusCode: 404,
-// //       headers: {
-// //         'Access-Control-Allow-Origin': '*'
-// //       },
-// //       body: JSON.stringify({
-// //         error: 'Group does not exist'
-// //       })
-// //     }
-// //   }
-
-//   // TODO: Create an image if groupId is valid
-//   // store to imagesTable
-//   // provide groupid, timestamp, imageid and title
-
-// // My solution
-// //   const title = JSON.parse(event.body)
-
-// //   const newItem = {
-// //       groupId: groupId,
-// //       timestamp: new Date().toISOString(),
-// //       imageId: uuid.v4(),
-// //       title: title
-// //   }
-// //   await docClient.put({
-// //     TableName: imagesTable,
-// //     Item: newItem
-// //   }).promise()
-
-//   const newImage = JSON.parse(event.body)
-//   const imageId = uuid.v4()
-//   const timestamp = new Date().toISOString()
-
-//   const newItem = {
-//     groupId: groupId,
-//     timestamp: timestamp,
-//     imageId: imageId,
-//     ...newImage,
-//     imageUrl: `https://${bucketName}.s3.amazonaws.com/${imageId}`
-// }
-
-//   console.log("Storing new item: ", newItem)
-
-//   const url = getUploadUrl(imageId)
-
-//   await docClient.put({
-//       TableName: imagesTable,
-//       Item: newItem
-//   }).promise()
-
-
-//   // In the official solution all this was put into a async function that is then called with await CreateImage()
-
-
-
-
-//   return {
-//     statusCode: 201,
-//     headers: {
-//       'Access-Control-Allow-Origin': '*'
-//     },
-//     body: JSON.stringify({
-//         newItem: newItem,
-//         uploadUrl: url
-//     })
-//   }
-// }
 
 // async function groupExists(groupId: string) {
 //   const result = await docClient
@@ -207,14 +62,38 @@ function getUploadUrl(imageId: string) {
 //     })
 //     .promise()
 
-//   console.log('Get group: ', result)
+//   logger.info('Get group: ', result)
 //   return !!result.Item
+// }
+
+// async function createImage(groupId: string, imageId: string, event: any) {
+//   const timestamp = new Date().toISOString()
+//   const newImage = JSON.parse(event.body)
+
+//   const newItem = {
+//     groupId,
+//     timestamp,
+//     imageId,
+//     ...newImage,
+//     imageUrl: `https://${bucketName}.s3.amazonaws.com/${imageId}`,
+//     processedImageUrl: null
+//   }
+//   logger.info('Storing new item: ', newItem)
+
+//   await docClient
+//     .put({
+//       TableName: imagesTable,
+//       Item: newItem
+//     })
+//     .promise()
+
+//   return newItem
 // }
 
 // function getUploadUrl(imageId: string) {
 //   return s3.getSignedUrl('putObject', {
 //     Bucket: bucketName,
 //     Key: imageId,
-//     Expires: urlExpiration
+//     Expires: parseInt(urlExpiration)
 //   })
 // }
