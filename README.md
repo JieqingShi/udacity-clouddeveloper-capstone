@@ -21,3 +21,7 @@ Model has 133 classes ...
 
 ## Deployment
 Why two different sections and not one serverless.yaml
+
+## Improvements
+Lambda coldstart for model, look into smaller models ONNX Runtime
+Allow user to delete images

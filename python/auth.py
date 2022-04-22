@@ -1,3 +1,7 @@
+try:
+  import unzip_requirements
+except ImportError:
+  pass
 import json
 import logging
 import os
@@ -17,14 +21,16 @@ tv = TokenVerifier(signature_verifier=sv,
 def lambda_handler(event, context):
     logger.info(f"event: {event}")
     try:
-        headers = event["headers"]  # a dictionary, no need to parse as JSON
-        id_token = headers.get("Authorization").split(" ")[1]  # splits away "Bearer"
-        jwt_token = tv.verify(id_token)
+        # if this is not connected to an API gateway there is no "headers" in event -> look for "authorizationToken" instead
+        # headers = event["headers"]  # a dictionary, no need to parse as JSON
+        # auth_token = headers.get("Authorization").split(" ")[1]  # splits away "Bearer"
+        auth_token = event.get("authorizationToken").split(" ")[1]
+        jwt_token = tv.verify(auth_token)
         logger.info(f"jwt_token: {jwt_token}")
         logger.info(f"User {jwt_token['sub']} is authorized")
-        # for testing
+        
         allow = {
-            "principalId": jwt_token.sub,
+            "principalId": jwt_token["sub"],
              "policyDocument": {
                 "Version": '2012-10-17',
                 "Statement": [

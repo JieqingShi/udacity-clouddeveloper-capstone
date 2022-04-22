@@ -10,6 +10,9 @@ service: serverless-imageclassifier-pytorch
 
 plugins:
   - serverless-python-requirements
+
+package:
+  individually: true
   
 custom:
   pythonRequirements:
@@ -32,6 +35,7 @@ provider:
     AUTH0_DOMAIN: "dev-75ascs57.eu.auth0.com"
     ECR_REPOSITORY_URI: "384578942266.dkr.ecr.eu-west-1.amazonaws.com/pytorch-timm-image-classification"
     ECR_IMAGE_DIGEST: sha256:eab2fc282a7f0fd50874a6304dba5c055ecb5e29fcb3c41b4527fa75565fde62
+    # ECR_IMAGE_DIGEST: sha256:544ee69aec63c0cba0c69662eac87ff4e77227a881e4f2f093657207883c4499
 
 functions:
   imagepredicttop5:
