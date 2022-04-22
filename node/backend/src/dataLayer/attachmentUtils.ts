@@ -6,7 +6,8 @@ const XAWS = AWSXRay.captureAWS(AWS)
 
 export class AttachmentUtils {
     constructor(
-        private readonly s3 = new XAWS.S3({ signatureVersion: 'v4' }),
+        // private readonly s3 = new XAWS.S3({ signatureVersion: 'v4' }),
+        public readonly s3 = new XAWS.S3({ signatureVersion: 'v4' }),
         private readonly imagesBucketName = process.env.IMAGES_S3_BUCKET,
         private readonly imagesProcessedBucketName = process.env.IMAGES_PROCESSED_S3_BUCKET,
         private readonly urlExpiration = parseInt(process.env.SIGNED_URL_EXPIRATION)
@@ -26,7 +27,7 @@ export class AttachmentUtils {
         return attachmentUrl
     }
 
-    putImageInProcessedBucket(key: string, body: any): void {
+    async putImageInProcessedBucket(key: string, body: any): Promise<void> {
         this.s3.putObject({
             Bucket: this.imagesProcessedBucketName,
             Key: key,

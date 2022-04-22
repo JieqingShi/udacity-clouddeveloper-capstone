@@ -36,9 +36,9 @@ provider:
   apiGateway:
     shouldStartNameWithService: true
 
-  tracing:
-    lambda: true
-    apiGateway: true
+  # tracing:
+  #   lambda: true
+  #   apiGateway: true
 
   iamRoleStatements:
     - Effect: Allow
@@ -199,6 +199,38 @@ functions:
         Action:
           - s3:PutObject
         Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
+
+  UpdateImage:
+    handler: src/lambda/http/updateImage.handler
+    events:
+      - http:
+          path: images/{imageId}
+          method: patch
+          cors: true
+          authorizer: Auth
+          reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: Update an image by the imageId
+            description: Update an image by the imageId
+            requestModels:
+              'application/json': ImageRequest
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
+          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
 
   ProcessImage:
     handler: src/lambda/s3/processImage.handler
