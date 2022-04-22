@@ -28,3 +28,6 @@ functions:
           path: predict
           method: post
           cors: true
+
+  auth:
+    handler: auth.lambda_handler
