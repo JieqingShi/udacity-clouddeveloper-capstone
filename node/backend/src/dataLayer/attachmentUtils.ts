@@ -28,11 +28,11 @@ export class AttachmentUtils {
     }
 
     async putImageInProcessedBucket(key: string, body: any): Promise<void> {
-        this.s3.putObject({
+        await this.s3.putObject({
             Bucket: this.imagesProcessedBucketName,
             Key: key,
             Body: body
-        })
+        }).promise()
     }
 
     // putImageInProcessedBucket(key: string, body: any) {
