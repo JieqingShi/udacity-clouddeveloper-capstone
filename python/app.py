@@ -7,11 +7,10 @@
 
 import json
 import logging
-# import boto3
 import io
 from PIL import Image
 import requests
-from inference_timm import *
+from inference_timm import *  
 
 logger = logging.getLogger("lambdaHandler")
 logger.setLevel(logging.INFO)
