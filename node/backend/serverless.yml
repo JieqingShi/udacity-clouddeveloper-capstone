@@ -58,32 +58,6 @@ provider:
     AUTH_0_JWKS_URL: https://dev-75ascs57.eu.auth0.com/.well-known/jwks.json
     MODEL_ENDPOINT: https://ot7wogofk9.execute-api.eu-west-1.amazonaws.com/dev/predict
 
-  # iamRoleStatements:
-  #   - Effect: Allow
-  #     Action:
-  #       - dynamodb:Scan
-  #       - dynamodb:PutItem
-  #       - dynamodb:GetItem
-  #     Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
-    # - Effect: Allow
-    #   Action:
-    #     - dynamodb:Query
-    #     - dynamodb:PutItem
-    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-    # - Effect: Allow
-    #   Action:
-    #     - dynamodb:Query
-    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
-    # - Effect: Allow
-    #   Action:
-    #     - s3:GetObject
-    #     - s3:PutObject
-    #   Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
-    # - Effect: Allow
-    #   Action:
-    #     - s3:PutObject
-    #   Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
-
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler

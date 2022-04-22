@@ -89,7 +89,7 @@ export async function createProcessedImage(imageId: string, imageUrl: string): P
 
     logger.info(`Obtained converted image buffer`)
     logger.info(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
-    attachmentUtils.putImageInProcessedBucket(imageId, imageBuffer)
+    await attachmentUtils.putImageInProcessedBucket(imageId, imageBuffer)
 
     const updateImageRequest: UpdateImageRequest = {
         imageId: imageId,
