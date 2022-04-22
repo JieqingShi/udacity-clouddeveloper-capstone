@@ -3,7 +3,6 @@ service:
 
 plugins:
   - serverless-webpack
-  - serverless-iam-roles-per-function
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
 
@@ -25,30 +24,15 @@ custom:
       - name: ImageRequest
         contentType: application/json
         schema: ${file(models/create-image-request.json)}
-      - name: UpdateImageRequest
-        contentType: application/json
-        schema: ${file(models/update-image-request.json)}
   webpack:
     includeModules: true
 
 provider:
   name: aws
   runtime: nodejs12.x
+
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'eu-west-1'}
-  apiGateway:
-    shouldStartNameWithService: true
-
-  tracing:
-    lambda: true
-    apiGateway: true
-
-  iamRoleStatements:
-    - Effect: Allow
-      Action:
-        - xray:PutTraceSegments
-        - xray:PutTelemetryRecords
-      Resource: '*'
 
   environment:
     GROUPS_TABLE: Groups-${self:provider.stage}
@@ -61,33 +45,34 @@ provider:
     AUTH_0_JWKS_URL: https://dev-75ascs57.eu.auth0.com/.well-known/jwks.json
     MODEL_ENDPOINT: https://ot7wogofk9.execute-api.eu-west-1.amazonaws.com/dev/predict
 
-  # iamRoleStatements:
-  #   - Effect: Allow
-  #     Action:
-  #       - dynamodb:Scan
-  #       - dynamodb:PutItem
-  #       - dynamodb:GetItem
-  #     Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
-    # - Effect: Allow
-    #   Action:
-    #     - dynamodb:Query
-    #     - dynamodb:PutItem
-    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-    # - Effect: Allow
-    #   Action:
-    #     - dynamodb:Query
-    #   Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
-    # - Effect: Allow
-    #   Action:
-    #     - s3:GetObject
-    #     - s3:PutObject
-    #   Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
-    # - Effect: Allow
-    #   Action:
-    #     - s3:PutObject
-    #   Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Scan
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:PutItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
 
 functions:
+
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
   
@@ -98,17 +83,6 @@ functions:
           path: /groups
           method: get
           cors: true
-          documentation:
-            summary: Get all groups
-            description: Get all groups
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:Scan
-          - dynamodb:GetItem
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
   
   CreateGroup:
     handler: src/lambda/http/createGroups.handler
@@ -124,13 +98,6 @@ functions:
             description: Create a new group
             requestModels:
               'application/json': GroupRequest
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:PutItem
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
 
   GetImagesPerGroup:
     handler: src/lambda/http/getImagesPerGroup.handler
@@ -139,17 +106,6 @@ functions:
           path: groups/{groupId}/images
           method: get
           cors: true
-          documentation:
-            summary: Get all images for a group
-            description: Get all images for a group
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:Query
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-          
   
   GetImage:
     handler: src/lambda/http/getImage.handler
@@ -158,17 +114,6 @@ functions:
           path: images/{imageId}
           method: get
           cors: true
-          documentation:
-            summary: Get an image by the imageId
-            description: Get an image by the imageId
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:Query
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
   
   CreateImage:
     handler: src/lambda/http/createImage.handler
@@ -184,22 +129,6 @@ functions:
             description: Create a new image
             requestModels:
               'application/json': ImageRequest
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:PutItem
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
-      - Effect: Allow
-        Action:
-          - s3:PutObject
-        Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
 
   ProcessImage:
     handler: src/lambda/s3/processImage.handler
@@ -213,24 +142,6 @@ functions:
                 - Ref: AWS::AccountId
                 - ${self:custom.topicName}
           topicName: ${self:custom.topicName}
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:Query
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
-      - Effect: Allow
-        Action:
-          - dynamodb:PutItem
-        Resource:
-          - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}
-      - Effect: Allow
-        Action:
-          - s3:PutObject
-        Resource: arn:aws:s3:::${self:provider.environment.IMAGES_PROCESSED_S3_BUCKET}/*
-          
           
 resources:
   Resources:

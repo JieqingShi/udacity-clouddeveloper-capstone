@@ -26,8 +26,8 @@ export class AttachmentUtils {
         return attachmentUrl
     }
 
-    async putImageInProcessedBucket(key: string, body: any): Promise<void>{
-        await this.s3.putObject({
+    putImageInProcessedBucket(key: string, body: any): void {
+        this.s3.putObject({
             Bucket: this.imagesProcessedBucketName,
             Key: key,
             Body: body
