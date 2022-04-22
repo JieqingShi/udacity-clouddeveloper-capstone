@@ -33,4 +33,12 @@ export class AttachmentUtils {
             Body: body
         })
     }
+
+    // putImageInProcessedBucket(key: string, body: any) {
+    //     this.s3.putObject({
+    //         Bucket: this.imagesProcessedBucketName,
+    //         Key: key,
+    //         Body: body
+    //     })
+    // }
 }
