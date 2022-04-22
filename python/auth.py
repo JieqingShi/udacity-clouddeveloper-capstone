@@ -23,7 +23,7 @@ def lambda_handler(event, context):
         logger.info(f"jwt_token: {jwt_token}")
         logger.info(f"User {jwt_token['sub']} is authorized")
         # for testing
-        body = {
+        allow = {
             "principalId": jwt_token.sub,
              "policyDocument": {
                 "Version": '2012-10-17',
@@ -36,18 +36,10 @@ def lambda_handler(event, context):
                 ]
               }
             }
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Credentials": True
-            },
-            "body": json.dumps(body)
-        }
+        return allow
     except Exception as e:
         logger.error(f"User not authorized! {e}")
-        body = {
+        deny = {
             "principalId": 'user',
             "policyDocument": {
                 "Version": '2012-10-17',
@@ -60,12 +52,4 @@ def lambda_handler(event, context):
                 ]
              }
         }
-        return {
-            "statusCode": 404,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Credentials": True
-            },
-            "body": json.dumps(body)
-        }
+        return deny

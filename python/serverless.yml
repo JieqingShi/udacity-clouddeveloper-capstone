@@ -41,12 +41,7 @@ functions:
           path: predict
           method: post
           cors: true
-          # authorizer: auth
+          authorizer: auth
 
   auth:
     handler: auth.lambda_handler
-    events:
-      - http:
-          path: /auth
-          method: post
-          cors: true
