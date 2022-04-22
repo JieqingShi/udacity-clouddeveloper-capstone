@@ -6,7 +6,7 @@ import { createLogger } from '../../utils/logger'
 import { AttachmentUtils } from '../../dataLayer/attachmentUtils'
 import { createProcessedImage } from '../../businessLogic/images'
 
-const imagesBucketName = process.env.IMAGES_BUCKET
+const imagesBucketName = process.env.IMAGES_S3_BUCKET
 const attachmentUtils = new AttachmentUtils()
 const logger = createLogger('processImageLogger')
 
@@ -34,3 +34,4 @@ handler
     credentials: true
   })
 )
+

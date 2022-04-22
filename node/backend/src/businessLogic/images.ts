@@ -38,10 +38,23 @@ export async function createImageEntryInTable(createImageRequest: CreateImageReq
     timestamp: new Date().toISOString()
   }
 
-  logger.info(`Creating a image with the following information: ${imageItem}`)
+  logger.info(`Creating a image with the following information: ${JSON.stringify(imageItem)}`)
   const result = await imageAccess.createImageInGroup(imageItem)
   return result
 }
+
+// export async function createImage(groupId: string, event: any): Promise<Image> {
+//   const createImageRequest: CreateImageRequest = JSON.parse(event.body)
+//   logger.info(`Storing image item in Table with the following content: ${createImageRequest}`)
+//   const imageItem = await createImageEntryInTable(createImageRequest, groupId)
+
+//   logger.info(`Generating upload URL for image storage`)
+//   const uploadUrl = await attachmentUtils.getUploadUrl(imageItem.imageId)
+//   logger.info(`Upload URL: ${uploadUrl}`)
+//   console.log(`Upload URL: ${uploadUrl}`)
+
+//   return imageItem
+// }
 
 export async function updateImage(updateImageRequest: UpdateImageRequest): Promise<Image> {
   const imageItem = await imageAccess.getImageById(updateImageRequest.imageId)
@@ -74,15 +87,18 @@ export async function createProcessedImage(imageId: string, imageUrl: string): P
     logger.info(`Resizing image and overlaying predictions as text over the image`)
     const imageBuffer = await resizeAndApplyTextOverlay(imageUrl, predictions.top5, predictions.prob5)
 
+    logger.info(`Obtained converted image buffer`)
     logger.info(`Saving processed images in S3 Bucket ${imagesProcessedBucketName}`)
-    await attachmentUtils.putImageInProcessedBucket(imageId, imageBuffer)
+    attachmentUtils.putImageInProcessedBucket(imageId, imageBuffer)
 
     const updateImageRequest: UpdateImageRequest = {
         imageId: imageId,
         processedImageUrl: attachmentUtils.getImagePublicReadUrl(imagesProcessedBucketName, imageId),
         title: `${predictions.top5[0].split("_").join(" ")} - ${Math.round(predictions.prob5[0]*10000)/100}%`,
     }
-    logger.info(`Updating image item table with the following information: ${updateImageRequest}`)
+    logger.info(`Updating image item table with the following information: ${JSON.stringify(updateImageRequest)}`)
+    logger.info(`New title of image is ${updateImageRequest.title}`)
+    logger.info(`Processed image url is ${updateImageRequest.processedImageUrl}`)
     await updateImage(updateImageRequest)
 
 }

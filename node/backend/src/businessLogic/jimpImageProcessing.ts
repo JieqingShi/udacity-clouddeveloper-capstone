@@ -18,12 +18,14 @@ export async function resizeAndApplyTextOverlay(imageUrl: string, classes: strin
   
     // Reading image
     const image = await Jimp.read(imageUrl);
-    logger.info("Read image. Image has size: ", image.bitmap.width, image.bitmap.height)
+    // logger.info("Read image. Image has size: ", image.bitmap.width, image.bitmap.height)
+    logger.info(`Original image size: ${image.bitmap.width} x ${image.bitmap.height}`)
     // Resize image
     image.resize(1000, Jimp.AUTO);
     const width = image.bitmap.width;
     const height = image.bitmap.height;
-    logger.info("Resized image. Image has size: ", width, height)
+    // logger.info("Resized image. Image has size: ", width, height)
+    logger.info(`Resized image size: ${width} x ${height}`)
   
     // Defining the text font and create the overlay with a custom color
     // The text is going to be 5 lines of "<breed> - <probability>"

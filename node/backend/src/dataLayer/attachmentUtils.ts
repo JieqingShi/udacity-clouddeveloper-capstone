@@ -12,10 +12,10 @@ export class AttachmentUtils {
         private readonly urlExpiration = parseInt(process.env.SIGNED_URL_EXPIRATION)
     ) {}
 
-    async getUploadUrl(imageId: string): Promise<string> {
+    async getUploadUrl(attachmentId: string): Promise<string> {
         return await this.s3.getSignedUrl('putObject', {
             Bucket: this.imagesBucketName,
-            Key: imageId,
+            Key: attachmentId,
             Expires: this.urlExpiration
         })
     }
@@ -26,7 +26,7 @@ export class AttachmentUtils {
         return attachmentUrl
     }
 
-    async putImageInProcessedBucket(key: string, body: any): Promise<void> {
+    async putImageInProcessedBucket(key: string, body: any): Promise<void>{
         await this.s3.putObject({
             Bucket: this.imagesProcessedBucketName,
             Key: key,
