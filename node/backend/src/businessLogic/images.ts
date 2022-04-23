@@ -43,19 +43,6 @@ export async function createImageEntryInTable(createImageRequest: CreateImageReq
   return result
 }
 
-// export async function createImage(groupId: string, event: any): Promise<Image> {
-//   const createImageRequest: CreateImageRequest = JSON.parse(event.body)
-//   logger.info(`Storing image item in Table with the following content: ${createImageRequest}`)
-//   const imageItem = await createImageEntryInTable(createImageRequest, groupId)
-
-//   logger.info(`Generating upload URL for image storage`)
-//   const uploadUrl = await attachmentUtils.getUploadUrl(imageItem.imageId)
-//   logger.info(`Upload URL: ${uploadUrl}`)
-//   console.log(`Upload URL: ${uploadUrl}`)
-
-//   return imageItem
-// }
-
 export async function updateImage(updateImageRequest: UpdateImageRequest): Promise<Image> {
   const imageItem = await imageAccess.getImageById(updateImageRequest.imageId)
   if (!imageItem) {
