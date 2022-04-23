@@ -9,7 +9,7 @@ This project is an serverless image sharing application, similar to the Udagram 
 
 Upon upload of an image **an AI model is triggered which tells the user what object is displayed in the image**.
 
-We call this app *Udagram Redux*.
+We can call this app *Udagram Redux*.
 
 This image is then processed into a uniform size and a text overlay is projected onto the image which shows the top5 most likely object classes + their probabilities as calculated by the model.
 
@@ -60,6 +60,7 @@ Golden retriever - 10.0%
 ...
 ```
 which is then overlayed onto the image. Furthermore the image is resized to a uniform width of 1000px. This is done with `Jimp`
+
 7. The processed image is then uploaded to another S3 bucket which only stores these processed images.
 8. Then the image dynamodb table is updated by replacing the original title (that the user can specify when uploading the image) with the most likely dog breed + its probability, i.e. `German shepherd - 60.0%`. Furthermore we update the `processedImageUrl` field of the image dynamodb table  with the URL of the processed image. This is a new field that is introduced which is initialized to `null` when the original image is created, but is now being updated with the new Url. The Url has the same structure as the original image URL `https://bucket-name.s3.amazonaws.com/imageId` where the imageId stays the same but the bucket name is replaced by that of the processed image`s S3 bucket.
 9. Finally the client fetches this new image item from the image dynamodb. For the correct image to be display the React frontend has to be modified to display the processedImageUrl instead of the old imageUrl. The title will be updated automatically.
