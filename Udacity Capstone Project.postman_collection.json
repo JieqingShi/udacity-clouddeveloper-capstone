@@ -1,0 +1,367 @@
+{
+	"info": {
+		"_postman_id": "061a834f-ce82-47ae-ba62-5db32ab2a4c5",
+		"name": "Udacity Capstone Project",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Model Prediction",
+			"item": [
+				{
+					"name": "Get Prediction",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "string"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"url\": \"https://g.foolcdn.com/editorial/images/674354/shiba-inu-dogecoin-cryptocurrency-blockchain-network-getty.jpg\"}"
+						},
+						"url": {
+							"raw": "https://{{modelApiId}}.execute-api.{{region}}.amazonaws.com/dev/predict_with_auth",
+							"protocol": "https",
+							"host": [
+								"{{modelApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"predict_with_auth"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Prediction with Authentication",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "string"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"url\": \"https://g.foolcdn.com/editorial/images/674354/shiba-inu-dogecoin-cryptocurrency-blockchain-network-getty.jpg\"}"
+						},
+						"url": {
+							"raw": "https://{{modelApiId}}.execute-api.{{region}}.amazonaws.com/dev/predict",
+							"protocol": "https",
+							"host": [
+								"{{modelApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"predict"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Images",
+			"item": [
+				{
+					"name": "Create an image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"title\": \"Image of a pomeranian\"\n}"
+						},
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups/1/images",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups",
+								"1",
+								"images"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Images for a group",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJnaXZlbl9uYW1lIjoiSXZhbiIsImZhbWlseV9uYW1lIjoiTXVzaGtldHlrIiwibmlja25hbWUiOiJpdmFuLm11c2hrZXRpayIsIm5hbWUiOiJJdmFuIE11c2hrZXR5ayIsInBpY3R1cmUiOiJodHRwczovL2xoNS5nb29nbGV1c2VyY29udGVudC5jb20vLTlFMzN4NG95YnZnL0FBQUFBQUFBQUFJL0FBQUFBQUFBR2JjL090SEFIWDlHbFBnL3Bob3RvLmpwZyIsImxvY2FsZSI6ImVuLUdCIiwidXBkYXRlZF9hdCI6IjIwMTktMDQtMDhUMjA6MTA6MDkuNjU2WiIsImVtYWlsIjoiaXZhbi5tdXNoa2V0aWtAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImlzcyI6Imh0dHBzOi8vdGVzdC1lbmRwb2ludC5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMTEwMzM3OTg1NDUwMTAxMjU4NTUiLCJhdWQiOiJHcTEzTTlzTnZtaTFJWFFLa1cya2N3TndVN2l1T05lTCIsImlhdCI6MTU1NDc1NDIwOSwiZXhwIjoxNTU0NzkwMjA5LCJhdF9oYXNoIjoidUFjYkk0c0NSZ2xVb1lwYVdaYW5JQSIsIm5vbmNlIjoiYU1NNGE1WkMySWowflNxSlRiRzBhZUYzLmpNenh4OVkifQ.QgVnp19MxrNqLjNy0tF5UhARFDqIvUyI0ZintM10Row",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups/bf927a69-a291-4b5a-83db-57d4530deb99/images",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups",
+								"bf927a69-a291-4b5a-83db-57d4530deb99",
+								"images"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get image by id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/images/71734632-13c3-409e-95f7-86134a95f131",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"images",
+								"71734632-13c3-409e-95f7-86134a95f131"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Groups",
+			"item": [
+				{
+					"name": "Get all groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create a group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Rodents\",\n\t\"description\": \"Photos of rodents\"\n}"
+						},
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create an invalid group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Numbers\",\n\t\"description\": 1234\n}"
+						},
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get a group by groupId",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://{{backendApiId}}.execute-api.{{region}}.amazonaws.com/dev/groups/1",
+							"protocol": "https",
+							"host": [
+								"{{backendApiId}}",
+								"execute-api",
+								"{{region}}",
+								"amazonaws",
+								"com"
+							],
+							"path": [
+								"dev",
+								"groups",
+								"1"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "modelApiId",
+			"value": "tn6w5h7da5",
+			"type": "string"
+		},
+		{
+			"key": "region",
+			"value": "eu-west-1",
+			"type": "string"
+		},
+		{
+			"key": "backendApiId",
+			"value": "lmnq2z8j48",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlBDNmt6M3drOFlranBqSUdZc3FfOCJ9.eyJpc3MiOiJodHRwczovL2Rldi03NWFzY3M1Ny5ldS5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMDQ3NjY2ODU5OTY3NjY2NTM2MDEiLCJhdWQiOiJsVVBWeVpHamFZYjQ0dEkxWjBsWlh2ZDV3UEVhYTJCOCIsImlhdCI6MTY1MDUyNjAzMywiZXhwIjoxNjUwOTU4MDMzLCJhdF9oYXNoIjoiSTNQcEJiaE5oc1ZnMlVoTVQ4QmppZyIsIm5vbmNlIjoiajktd1JEaFE3Z0lTX2ZnWkZYOWhlOGNlfm5wdFhsSGQifQ.Xa3FH6-GG-m6hF1W9RMv5pn2eAzHq2GQQGULNnG749AMbo9Oal447smVdpcMkL3minPSmzyOLqlPdBJZKZJqVFK9RA86TMU1j0e6B_F5REH-S6_03acgdzbu6g4qrxyzRBAFhLch5B7Guddgtfe-f6Xnd7F5snh23Oqj46oZ5Pb6LBmPgRah75Yz4qyufYM1YPaO5Z9VkzMmRs58zHuZJLyNPImNDI3to-nIbyGwPjT3kYgFn6Bug-jWk3IrlEmyq-Py2HYzPI2yKwfxHlGgq_qIzePG8biIpYPgTFrAgvgeQRaBNBFgj1oZVQIQkuo8U6t1_OQFKWsfhty8LgYXPQ",
+			"type": "string"
+		}
+	]
+}
