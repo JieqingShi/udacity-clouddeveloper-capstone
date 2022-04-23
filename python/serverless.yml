@@ -8,7 +8,16 @@
    # that only one of the two is allowed to be specified)!
 service: serverless-imageclassifier-pytorch
 
-# plugins:
+plugins:
+  - serverless-python-requirements
+
+package:
+  individually: true
+  
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+    zip: true
 
 provider:
   name: aws
@@ -20,11 +29,38 @@ provider:
   apiGateway:
     shouldStartNameWithService: true
 
+  environment:
+    AUTH0_JWKS_URL: "https://dev-75ascs57.eu.auth0.com/.well-known/jwks.json"
+    AUTH0_CLIENT_ID: "lUPVyZGjaYb44tI1Z0lZXvd5wPEaa2B8"
+    AUTH0_DOMAIN: "dev-75ascs57.eu.auth0.com"
+    ECR_REPOSITORY_URI: "384578942266.dkr.ecr.eu-west-1.amazonaws.com/pytorch-timm-image-classification"
+    ECR_IMAGE_DIGEST: sha256:eab2fc282a7f0fd50874a6304dba5c055ecb5e29fcb3c41b4527fa75565fde62
+
 functions:
   imagepredicttop5:
-    image: 384578942266.dkr.ecr.eu-west-1.amazonaws.com/pytorch-timm-image-classification@sha256:eab2fc282a7f0fd50874a6304dba5c055ecb5e29fcb3c41b4527fa75565fde62
+    image: ${self:provider.environment.ECR_REPOSITORY_URI}@${self:provider.environment.ECR_IMAGE_DIGEST}
     events:
       - http:
           path: predict
           method: post
           cors: true
+
+  # Just realized it makes things a lot more complicated when authorization is required to make a prediction
+  # Not talking about sending a request to the endpoint directly via Postman but in the application the prediction endpoint is triggered
+  # an SNSEvent, i.e. the upload of a file to S3 (processImage.ts). In an SNS event there is no auth token (not that I know of). 
+  # We would have to change the entire routing to make it possible (e.g. the prediction endpoint and subsequent image processing could be triggered from the frontend instead)
+  # If the prediction were triggered by an API Gateway this would be a different story... we could just pass along the auth token from the event.
+
+  # Therefore it is decided to not enforce authorization for the prediction endpoint, 
+  # nevertheless we add another lambda function that can be interacted with directly via Postman
+  imagepredicttop5withauth:
+    image: ${self:provider.environment.ECR_REPOSITORY_URI}@${self:provider.environment.ECR_IMAGE_DIGEST}
+    events:
+      - http:
+          path: predict_with_auth
+          method: post
+          cors: true
+          authorizer: auth
+  
+  auth:
+    handler: auth.lambda_handler

@@ -1,0 +1,28 @@
+{
+  "name": "python-model-backend",
+  "version": "1.0.0",
+  "description": "Python Model Backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JieqingShi/udacity-clouddeveloper-capstone.git"
+  },
+  "keywords": [
+    "Udacity",
+    "Cloud",
+    "Developer",
+    "Nanodegree"
+  ],
+  "author": "Jieqing Shi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JieqingShi/udacity-clouddeveloper-capstone/issues"
+  },
+  "homepage": "https://github.com/JieqingShi/udacity-clouddeveloper-capstone#readme",
+  "dependencies": {
+    "serverless-python-requirements": "^5.4.0"
+  }
+}

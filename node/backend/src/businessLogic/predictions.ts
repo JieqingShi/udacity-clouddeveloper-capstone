@@ -18,4 +18,4 @@ export async function getPredictions(imageUrl: string): Promise<ModelPrediction>
     })
   
     return result.data
-  }
+}
